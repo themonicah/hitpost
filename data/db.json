@@ -1,0 +1,176 @@
+{
+  "users": [
+    {
+      "id": "480e6296-451e-4df9-9c92-01281f602ff9",
+      "email": "themonicah@gmail.com",
+      "created_at": "2026-01-04T21:22:22.677Z"
+    }
+  ],
+  "memes": [
+    {
+      "id": "5601abd7-c1e0-405a-b3fe-08a51fb5d0cd",
+      "user_id": "480e6296-451e-4df9-9c92-01281f602ff9",
+      "file_path": "/uploads/fabec0d2-7d27-4666-82d1-797fa7f2fc34.png",
+      "file_type": "image",
+      "created_at": "2026-01-04T21:22:29.480Z"
+    },
+    {
+      "id": "e829441c-e779-4432-8f79-84b3e9897963",
+      "user_id": "480e6296-451e-4df9-9c92-01281f602ff9",
+      "file_path": "/uploads/82530430-93aa-4710-a9b0-9cd8cafedbb2.png",
+      "file_type": "image",
+      "created_at": "2026-01-04T21:22:34.890Z"
+    }
+  ],
+  "dumps": [
+    {
+      "id": "99af5b70-5fcb-42b2-84a3-fea50fc1ea83",
+      "sender_id": "480e6296-451e-4df9-9c92-01281f602ff9",
+      "note": "asdsd",
+      "created_at": "2026-01-04T21:22:50.698Z"
+    },
+    {
+      "id": "93aa835b-39d3-421a-a4a6-808569a19bc3",
+      "sender_id": "480e6296-451e-4df9-9c92-01281f602ff9",
+      "note": "some hot googgle babt",
+      "created_at": "2026-01-05T09:12:53.826Z"
+    },
+    {
+      "id": "eff96b00-495d-48f4-b264-8174472eeef3",
+      "sender_id": "480e6296-451e-4df9-9c92-01281f602ff9",
+      "note": "adas",
+      "created_at": "2026-01-05T14:55:43.744Z"
+    }
+  ],
+  "dump_memes": [
+    {
+      "id": "61039d50-aab1-4094-9132-fdb47965c488",
+      "dump_id": "99af5b70-5fcb-42b2-84a3-fea50fc1ea83",
+      "meme_id": "e829441c-e779-4432-8f79-84b3e9897963",
+      "sort_order": 0
+    },
+    {
+      "id": "bd47bbab-9d0c-4257-b633-9b025a46f5a0",
+      "dump_id": "93aa835b-39d3-421a-a4a6-808569a19bc3",
+      "meme_id": "e829441c-e779-4432-8f79-84b3e9897963",
+      "sort_order": 0
+    },
+    {
+      "id": "b74ccecc-f841-4aa1-935b-96fe97b2a852",
+      "dump_id": "93aa835b-39d3-421a-a4a6-808569a19bc3",
+      "meme_id": "5601abd7-c1e0-405a-b3fe-08a51fb5d0cd",
+      "sort_order": 1
+    },
+    {
+      "id": "bd5872c8-803c-48c9-85a0-c2b4bc94104d",
+      "dump_id": "eff96b00-495d-48f4-b264-8174472eeef3",
+      "meme_id": "e829441c-e779-4432-8f79-84b3e9897963",
+      "sort_order": 0
+    },
+    {
+      "id": "4969dc9e-1b34-4ac3-82fa-35ce0836ffd8",
+      "dump_id": "eff96b00-495d-48f4-b264-8174472eeef3",
+      "meme_id": "5601abd7-c1e0-405a-b3fe-08a51fb5d0cd",
+      "sort_order": 1
+    }
+  ],
+  "dump_recipients": [
+    {
+      "id": "ca01846e-c893-4c1d-b32f-8590dde88493",
+      "dump_id": "99af5b70-5fcb-42b2-84a3-fea50fc1ea83",
+      "email": "themonicah@gmail.com",
+      "token": "533bf8a7-984e-4e0e-a55d-e35bbee76618",
+      "viewed_at": null,
+      "recipient_note": null,
+      "created_at": "2026-01-04T21:22:50.699Z"
+    },
+    {
+      "id": "2e324a28-eacd-490b-9c41-00955de93b72",
+      "dump_id": "93aa835b-39d3-421a-a4a6-808569a19bc3",
+      "email": "themonicah@gmail.com",
+      "token": "4ecdbcc6-6deb-401a-b857-d93434644e5c",
+      "viewed_at": null,
+      "view_count": 0,
+      "recipient_note": null,
+      "created_at": "2026-01-05T09:12:53.827Z"
+    },
+    {
+      "id": "f478ff8d-4e35-4da7-8d73-5d3620061c2c",
+      "dump_id": "eff96b00-495d-48f4-b264-8174472eeef3",
+      "email": "themonicah@gmail.com",
+      "token": "7fbe6893-7311-431d-9c73-25ee31f4e6df",
+      "viewed_at": null,
+      "view_count": 0,
+      "recipient_note": null,
+      "created_at": "2026-01-05T14:55:43.745Z"
+    }
+  ],
+  "reactions": [],
+  "sent_emails": [
+    {
+      "id": "fa05d60a-35c3-4773-af78-1c9b51e8b7b9",
+      "to_email": "themonicah@gmail.com",
+      "subject": "themonicah@gmail.com sent you a HitPost",
+      "body": "You received a meme dump!\n\nClick here to view: http://localhost:3000/view/533bf8a7-984e-4e0e-a55d-e35bbee76618",
+      "link": "http://localhost:3000/view/533bf8a7-984e-4e0e-a55d-e35bbee76618",
+      "created_at": "2026-01-04T21:22:50.699Z"
+    },
+    {
+      "id": "e14f8ea0-5d2d-411a-9b67-58e5dbbe6dc8",
+      "to_email": "themonicah@gmail.com",
+      "subject": "themonicah@gmail.com sent you a HitPost",
+      "body": "You received a meme dump!\n\nClick here to view: http://localhost:3000/view/4ecdbcc6-6deb-401a-b857-d93434644e5c",
+      "link": "http://localhost:3000/view/4ecdbcc6-6deb-401a-b857-d93434644e5c",
+      "created_at": "2026-01-05T09:12:53.827Z"
+    },
+    {
+      "id": "5ad77e6a-0ff4-4daa-b4d8-3dc470031edb",
+      "to_email": "themonicah@gmail.com",
+      "subject": "themonicah@gmail.com sent you a HitPost",
+      "body": "You received a meme dump!\n\nClick here to view: https://metal-masks-roll.loca.lt/view/7fbe6893-7311-431d-9c73-25ee31f4e6df",
+      "link": "https://metal-masks-roll.loca.lt/view/7fbe6893-7311-431d-9c73-25ee31f4e6df",
+      "created_at": "2026-01-05T14:55:43.745Z"
+    }
+  ],
+  "recipient_groups": [
+    {
+      "id": "7b89688d-0986-4c2c-bd11-a3c1d9bc6f1d",
+      "user_id": "480e6296-451e-4df9-9c92-01281f602ff9",
+      "name": "test 1",
+      "created_at": "2026-01-05T09:13:38.711Z"
+    }
+  ],
+  "group_members": [
+    {
+      "id": "8bc56569-d4d2-42bc-b81f-bc02845c1ebb",
+      "group_id": "7b89688d-0986-4c2c-bd11-a3c1d9bc6f1d",
+      "name": "monica",
+      "email": "themonicah@gmail.com",
+      "created_at": "2026-01-05T09:13:46.831Z"
+    }
+  ],
+  "collections": [
+    {
+      "id": "35dded55-91ad-482d-8aec-c14d100a15ab",
+      "user_id": "480e6296-451e-4df9-9c92-01281f602ff9",
+      "name": "test 1",
+      "created_at": "2026-01-05T09:12:31.211Z"
+    }
+  ],
+  "collection_memes": [
+    {
+      "id": "4b362601-c66f-4436-a677-02fae0a26f80",
+      "collection_id": "35dded55-91ad-482d-8aec-c14d100a15ab",
+      "meme_id": "e829441c-e779-4432-8f79-84b3e9897963",
+      "sort_order": 1,
+      "added_at": "2026-01-05T09:12:31.212Z"
+    },
+    {
+      "id": "a64915f3-261d-44aa-bb53-b6eef7360428",
+      "collection_id": "35dded55-91ad-482d-8aec-c14d100a15ab",
+      "meme_id": "5601abd7-c1e0-405a-b3fe-08a51fb5d0cd",
+      "sort_order": 2,
+      "added_at": "2026-01-05T09:12:31.212Z"
+    }
+  ]
+}
