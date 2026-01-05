@@ -14,12 +14,12 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
 
   const { id } = await params;
 
-  const collection = db.getCollectionById(id);
+  const collection = await db.getCollectionById(id);
   if (!collection || collection.user_id !== user.id) {
     return NextResponse.json({ error: "Collection not found" }, { status: 404 });
   }
 
-  const memes = db.getMemesByCollection(id);
+  const memes = await db.getMemesByCollection(id);
 
   return NextResponse.json({ collection, memes });
 }
@@ -32,7 +32,7 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
 
   const { id } = await params;
 
-  const collection = db.getCollectionById(id);
+  const collection = await db.getCollectionById(id);
   if (!collection || collection.user_id !== user.id) {
     return NextResponse.json({ error: "Collection not found" }, { status: 404 });
   }
@@ -44,7 +44,7 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "Collection name is required" }, { status: 400 });
     }
 
-    db.updateCollection(id, name.trim());
+    await db.updateCollection(id, name.trim());
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -61,12 +61,12 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
 
   const { id } = await params;
 
-  const collection = db.getCollectionById(id);
+  const collection = await db.getCollectionById(id);
   if (!collection || collection.user_id !== user.id) {
     return NextResponse.json({ error: "Collection not found" }, { status: 404 });
   }
 
-  db.deleteCollection(id);
+  await db.deleteCollection(id);
 
   return NextResponse.json({ success: true });
 }

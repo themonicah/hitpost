@@ -1,5 +1,5 @@
 import { getSession } from "@/lib/auth";
-import db, { DumpMeme, DumpRecipient, SentEmail } from "@/lib/db";
+import db from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
 import { v4 as uuid } from "uuid";
 
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Verify all memes belong to user
-    const userMemes = db.getMemesByUser(user.id);
+    const userMemes = await db.getMemesByUser(user.id);
     const userMemeIds = new Set(userMemes.map((m) => m.id));
     const allValid = memeIds.every((id: string) => userMemeIds.has(id));
 
@@ -37,21 +37,20 @@ export async function POST(req: NextRequest) {
 
     // Create dump
     const dumpId = uuid();
-    db.createDump({
+    await db.createDump({
       id: dumpId,
       sender_id: user.id,
       note: note || null,
-      created_at: new Date().toISOString(),
     });
 
     // Add memes to dump
-    const dumpMemes: DumpMeme[] = memeIds.map((memeId: string, index: number) => ({
+    const dumpMemes = memeIds.map((memeId: string, index: number) => ({
       id: uuid(),
       dump_id: dumpId,
       meme_id: memeId,
       sort_order: index,
     }));
-    db.addMemesToDump(dumpMemes);
+    await db.addMemesToDump(dumpMemes);
 
     // Create recipients and "send" emails
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
@@ -60,32 +59,25 @@ export async function POST(req: NextRequest) {
       const recipientId = uuid();
       const token = uuid();
 
-      const recipient: DumpRecipient = {
+      await db.createRecipient({
         id: recipientId,
         dump_id: dumpId,
         email,
         token,
-        viewed_at: null,
-        view_count: 0,
-        recipient_note: null,
-        created_at: new Date().toISOString(),
-      };
-      db.createRecipient(recipient);
+      });
 
       // Mock email
       const link = `${baseUrl}/view/${token}`;
       const subject = `${user.email} sent you a HitPost`;
       const body = `You received a meme dump!\n\nClick here to view: ${link}`;
 
-      const sentEmail: SentEmail = {
+      await db.createEmail({
         id: uuid(),
         to_email: email,
         subject,
         body,
         link,
-        created_at: new Date().toISOString(),
-      };
-      db.createEmail(sentEmail);
+      });
 
       console.log("\n=== EMAIL SENT ===");
       console.log(`To: ${email}`);
@@ -107,15 +99,18 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const dumps = db.getDumpsByUser(user.id).map((dump) => {
-    const stats = db.getDumpStats(dump.id);
-    return {
-      ...dump,
-      meme_count: stats.memeCount,
-      recipient_count: stats.recipientCount,
-      viewed_count: stats.viewedCount,
-    };
-  });
+  const dumps = await db.getDumpsByUser(user.id);
+  const dumpsWithStats = await Promise.all(
+    dumps.map(async (dump) => {
+      const stats = await db.getDumpStats(dump.id);
+      return {
+        ...dump,
+        meme_count: stats.memeCount,
+        recipient_count: stats.recipientCount,
+        viewed_count: stats.viewedCount,
+      };
+    })
+  );
 
-  return NextResponse.json({ dumps });
+  return NextResponse.json({ dumps: dumpsWithStats });
 }

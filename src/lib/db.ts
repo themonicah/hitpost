@@ -1,5 +1,4 @@
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
-import path from "path";
+import { sql } from "@vercel/postgres";
 
 // Types
 export interface User {
@@ -11,7 +10,7 @@ export interface User {
 export interface Meme {
   id: string;
   user_id: string;
-  file_path: string;
+  file_url: string;
   file_type: "image" | "video";
   created_at: string;
 }
@@ -88,432 +87,398 @@ export interface CollectionMeme {
   added_at: string;
 }
 
-interface Database {
-  users: User[];
-  memes: Meme[];
-  dumps: Dump[];
-  dump_memes: DumpMeme[];
-  dump_recipients: DumpRecipient[];
-  reactions: Reaction[];
-  sent_emails: SentEmail[];
-  recipient_groups: RecipientGroup[];
-  group_members: GroupMember[];
-  collections: Collection[];
-  collection_memes: CollectionMeme[];
-}
-
-const DATA_DIR = path.join(process.cwd(), "data");
-const DB_PATH = path.join(DATA_DIR, "db.json");
-
-function ensureDataDir() {
-  if (!existsSync(DATA_DIR)) {
-    mkdirSync(DATA_DIR, { recursive: true });
-  }
-}
-
-function loadDb(): Database {
-  ensureDataDir();
-  if (!existsSync(DB_PATH)) {
-    const emptyDb: Database = {
-      users: [],
-      memes: [],
-      dumps: [],
-      dump_memes: [],
-      dump_recipients: [],
-      reactions: [],
-      sent_emails: [],
-      recipient_groups: [],
-      group_members: [],
-      collections: [],
-      collection_memes: [],
-    };
-    writeFileSync(DB_PATH, JSON.stringify(emptyDb, null, 2));
-    return emptyDb;
-  }
-  const data = JSON.parse(readFileSync(DB_PATH, "utf-8"));
-  // Ensure new fields exist for backwards compatibility
-  if (!data.recipient_groups) data.recipient_groups = [];
-  if (!data.group_members) data.group_members = [];
-  if (!data.collections) data.collections = [];
-  if (!data.collection_memes) data.collection_memes = [];
-  return data;
-}
-
-function saveDb(db: Database) {
-  ensureDataDir();
-  writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
-}
-
 // Database operations
 export const db = {
   // Users
-  getUserById(id: string): User | undefined {
-    return loadDb().users.find((u) => u.id === id);
+  async getUserById(id: string): Promise<User | undefined> {
+    const { rows } = await sql<User>`SELECT * FROM users WHERE id = ${id}`;
+    return rows[0];
   },
 
-  getUserByEmail(email: string): User | undefined {
-    return loadDb().users.find((u) => u.email === email);
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const { rows } = await sql<User>`SELECT * FROM users WHERE email = ${email}`;
+    return rows[0];
   },
 
-  createUser(user: User): void {
-    const data = loadDb();
-    data.users.push(user);
-    saveDb(data);
+  async createUser(user: { id: string; email: string }): Promise<void> {
+    await sql`INSERT INTO users (id, email) VALUES (${user.id}, ${user.email})`;
   },
 
   // Memes
-  getMemesByUser(userId: string): Meme[] {
-    return loadDb()
-      .memes.filter((m) => m.user_id === userId)
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  async getMemesByUser(userId: string): Promise<Meme[]> {
+    const { rows } = await sql<Meme>`
+      SELECT id, user_id, file_url, file_type, created_at::text
+      FROM memes
+      WHERE user_id = ${userId}
+      ORDER BY created_at DESC
+    `;
+    return rows;
   },
 
-  getMemeById(id: string): Meme | undefined {
-    return loadDb().memes.find((m) => m.id === id);
+  async getMemeById(id: string): Promise<Meme | undefined> {
+    const { rows } = await sql<Meme>`
+      SELECT id, user_id, file_url, file_type, created_at::text
+      FROM memes
+      WHERE id = ${id}
+    `;
+    return rows[0];
   },
 
-  getMemesByIds(ids: string[]): Meme[] {
-    const data = loadDb();
-    return ids.map((id) => data.memes.find((m) => m.id === id)).filter(Boolean) as Meme[];
+  async getMemesByIds(ids: string[]): Promise<Meme[]> {
+    if (ids.length === 0) return [];
+    const { rows } = await sql<Meme>`
+      SELECT id, user_id, file_url, file_type, created_at::text
+      FROM memes
+      WHERE id = ANY(${ids}::uuid[])
+    `;
+    return rows;
   },
 
-  createMeme(meme: Meme): void {
-    const data = loadDb();
-    data.memes.push(meme);
-    saveDb(data);
+  async createMeme(meme: { id: string; user_id: string; file_url: string; file_type: string }): Promise<void> {
+    await sql`
+      INSERT INTO memes (id, user_id, file_url, file_type)
+      VALUES (${meme.id}, ${meme.user_id}, ${meme.file_url}, ${meme.file_type})
+    `;
   },
 
-  deleteMeme(id: string): void {
-    const data = loadDb();
-    data.memes = data.memes.filter((m) => m.id !== id);
-    saveDb(data);
+  async deleteMeme(id: string): Promise<void> {
+    await sql`DELETE FROM memes WHERE id = ${id}`;
   },
 
   // Dumps
-  getDumpById(id: string): Dump | undefined {
-    return loadDb().dumps.find((d) => d.id === id);
+  async getDumpById(id: string): Promise<Dump | undefined> {
+    const { rows } = await sql<Dump>`
+      SELECT id, sender_id, note, created_at::text
+      FROM dumps
+      WHERE id = ${id}
+    `;
+    return rows[0];
   },
 
-  getDumpsByUser(userId: string): Dump[] {
-    return loadDb()
-      .dumps.filter((d) => d.sender_id === userId)
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  async getDumpsByUser(userId: string): Promise<Dump[]> {
+    const { rows } = await sql<Dump>`
+      SELECT id, sender_id, note, created_at::text
+      FROM dumps
+      WHERE sender_id = ${userId}
+      ORDER BY created_at DESC
+    `;
+    return rows;
   },
 
-  createDump(dump: Dump): void {
-    const data = loadDb();
-    data.dumps.push(dump);
-    saveDb(data);
+  async createDump(dump: { id: string; sender_id: string; note: string | null }): Promise<void> {
+    await sql`
+      INSERT INTO dumps (id, sender_id, note)
+      VALUES (${dump.id}, ${dump.sender_id}, ${dump.note})
+    `;
   },
 
   // Dump Memes
-  addMemesToDump(dumpMemes: DumpMeme[]): void {
-    const data = loadDb();
-    data.dump_memes.push(...dumpMemes);
-    saveDb(data);
+  async addMemesToDump(dumpMemes: { id: string; dump_id: string; meme_id: string; sort_order: number }[]): Promise<void> {
+    for (const dm of dumpMemes) {
+      await sql`
+        INSERT INTO dump_memes (id, dump_id, meme_id, sort_order)
+        VALUES (${dm.id}, ${dm.dump_id}, ${dm.meme_id}, ${dm.sort_order})
+      `;
+    }
   },
 
-  getMemesByDump(dumpId: string): Meme[] {
-    const data = loadDb();
-    const dumpMemes = data.dump_memes
-      .filter((dm) => dm.dump_id === dumpId)
-      .sort((a, b) => a.sort_order - b.sort_order);
-    return dumpMemes
-      .map((dm) => data.memes.find((m) => m.id === dm.meme_id))
-      .filter(Boolean) as Meme[];
+  async getMemesByDump(dumpId: string): Promise<Meme[]> {
+    const { rows } = await sql<Meme>`
+      SELECT m.id, m.user_id, m.file_url, m.file_type, m.created_at::text
+      FROM memes m
+      JOIN dump_memes dm ON m.id = dm.meme_id
+      WHERE dm.dump_id = ${dumpId}
+      ORDER BY dm.sort_order
+    `;
+    return rows;
   },
 
-  getDumpMemeCount(dumpId: string): number {
-    return loadDb().dump_memes.filter((dm) => dm.dump_id === dumpId).length;
+  async getDumpMemeCount(dumpId: string): Promise<number> {
+    const { rows } = await sql<{ count: string }>`
+      SELECT COUNT(*) as count FROM dump_memes WHERE dump_id = ${dumpId}
+    `;
+    return parseInt(rows[0]?.count || "0");
   },
 
   // Dump Recipients
-  getRecipientByToken(token: string): DumpRecipient | undefined {
-    return loadDb().dump_recipients.find((r) => r.token === token);
+  async getRecipientByToken(token: string): Promise<DumpRecipient | undefined> {
+    const { rows } = await sql<DumpRecipient>`
+      SELECT id, dump_id, email, token::text, viewed_at::text, view_count, recipient_note, created_at::text
+      FROM dump_recipients
+      WHERE token = ${token}::uuid
+    `;
+    return rows[0];
   },
 
-  getRecipientsByDump(dumpId: string): DumpRecipient[] {
-    return loadDb().dump_recipients.filter((r) => r.dump_id === dumpId);
+  async getRecipientsByDump(dumpId: string): Promise<DumpRecipient[]> {
+    const { rows } = await sql<DumpRecipient>`
+      SELECT id, dump_id, email, token::text, viewed_at::text, view_count, recipient_note, created_at::text
+      FROM dump_recipients
+      WHERE dump_id = ${dumpId}
+    `;
+    return rows;
   },
 
-  getRecipientById(id: string): DumpRecipient | undefined {
-    return loadDb().dump_recipients.find((r) => r.id === id);
+  async getRecipientById(id: string): Promise<DumpRecipient | undefined> {
+    const { rows } = await sql<DumpRecipient>`
+      SELECT id, dump_id, email, token::text, viewed_at::text, view_count, recipient_note, created_at::text
+      FROM dump_recipients
+      WHERE id = ${id}
+    `;
+    return rows[0];
   },
 
-  createRecipient(recipient: DumpRecipient): void {
-    const data = loadDb();
-    data.dump_recipients.push(recipient);
-    saveDb(data);
+  async createRecipient(recipient: { id: string; dump_id: string; email: string; token: string }): Promise<void> {
+    await sql`
+      INSERT INTO dump_recipients (id, dump_id, email, token)
+      VALUES (${recipient.id}, ${recipient.dump_id}, ${recipient.email}, ${recipient.token}::uuid)
+    `;
   },
 
-  markRecipientViewed(id: string): void {
-    const data = loadDb();
-    const recipient = data.dump_recipients.find((r) => r.id === id);
-    if (recipient) {
-      if (!recipient.viewed_at) {
-        recipient.viewed_at = new Date().toISOString();
-      }
-      recipient.view_count = (recipient.view_count || 0) + 1;
-      saveDb(data);
-    }
+  async markRecipientViewed(id: string): Promise<void> {
+    await sql`
+      UPDATE dump_recipients
+      SET viewed_at = COALESCE(viewed_at, NOW()), view_count = view_count + 1
+      WHERE id = ${id}
+    `;
   },
 
-  updateRecipientNote(id: string, note: string | null): void {
-    const data = loadDb();
-    const recipient = data.dump_recipients.find((r) => r.id === id);
-    if (recipient) {
-      recipient.recipient_note = note;
-      saveDb(data);
-    }
+  async updateRecipientNote(id: string, note: string | null): Promise<void> {
+    await sql`UPDATE dump_recipients SET recipient_note = ${note} WHERE id = ${id}`;
   },
 
   // Reactions
-  getReactionsByRecipient(recipientId: string): Reaction[] {
-    return loadDb().reactions.filter((r) => r.recipient_id === recipientId);
+  async getReactionsByRecipient(recipientId: string): Promise<Reaction[]> {
+    const { rows } = await sql<Reaction>`
+      SELECT id, recipient_id, meme_id, emoji, created_at::text
+      FROM reactions
+      WHERE recipient_id = ${recipientId}
+    `;
+    return rows;
   },
 
-  getReactionsByRecipients(recipientIds: string[]): Reaction[] {
-    return loadDb().reactions.filter((r) => recipientIds.includes(r.recipient_id));
+  async getReactionsByRecipients(recipientIds: string[]): Promise<Reaction[]> {
+    if (recipientIds.length === 0) return [];
+    const { rows } = await sql<Reaction>`
+      SELECT id, recipient_id, meme_id, emoji, created_at::text
+      FROM reactions
+      WHERE recipient_id = ANY(${recipientIds}::uuid[])
+    `;
+    return rows;
   },
 
-  upsertReaction(recipientId: string, memeId: string, emoji: string | null): void {
-    const data = loadDb();
-    const existingIndex = data.reactions.findIndex(
-      (r) => r.recipient_id === recipientId && r.meme_id === memeId
-    );
-
+  async upsertReaction(recipientId: string, memeId: string, emoji: string | null): Promise<void> {
     if (emoji) {
-      if (existingIndex >= 0) {
-        data.reactions[existingIndex].emoji = emoji;
-      } else {
-        data.reactions.push({
-          id: crypto.randomUUID(),
-          recipient_id: recipientId,
-          meme_id: memeId,
-          emoji,
-          created_at: new Date().toISOString(),
-        });
-      }
+      await sql`
+        INSERT INTO reactions (recipient_id, meme_id, emoji)
+        VALUES (${recipientId}, ${memeId}, ${emoji})
+        ON CONFLICT (recipient_id, meme_id) DO UPDATE SET emoji = ${emoji}
+      `;
     } else {
-      if (existingIndex >= 0) {
-        data.reactions.splice(existingIndex, 1);
-      }
+      await sql`DELETE FROM reactions WHERE recipient_id = ${recipientId} AND meme_id = ${memeId}`;
     }
-    saveDb(data);
   },
 
   // Sent Emails
-  createEmail(email: SentEmail): void {
-    const data = loadDb();
-    data.sent_emails.push(email);
-    saveDb(data);
+  async createEmail(email: { id: string; to_email: string; subject: string; body: string; link: string }): Promise<void> {
+    await sql`
+      INSERT INTO sent_emails (id, to_email, subject, body, link)
+      VALUES (${email.id}, ${email.to_email}, ${email.subject}, ${email.body}, ${email.link})
+    `;
   },
 
-  getEmails(): SentEmail[] {
-    return loadDb()
-      .sent_emails.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-      .slice(0, 50);
+  async getEmails(): Promise<SentEmail[]> {
+    const { rows } = await sql<SentEmail>`
+      SELECT id, to_email, subject, body, link, created_at::text
+      FROM sent_emails
+      ORDER BY created_at DESC
+      LIMIT 50
+    `;
+    return rows;
   },
 
   // Stats
-  getDumpStats(dumpId: string): { memeCount: number; recipientCount: number; viewedCount: number } {
-    const data = loadDb();
-    const memeCount = data.dump_memes.filter((dm) => dm.dump_id === dumpId).length;
-    const recipients = data.dump_recipients.filter((r) => r.dump_id === dumpId);
-    const recipientCount = recipients.length;
-    const viewedCount = recipients.filter((r) => r.viewed_at).length;
-    return { memeCount, recipientCount, viewedCount };
+  async getDumpStats(dumpId: string): Promise<{ memeCount: number; recipientCount: number; viewedCount: number }> {
+    const memeResult = await sql<{ count: string }>`SELECT COUNT(*) as count FROM dump_memes WHERE dump_id = ${dumpId}`;
+    const recipientResult = await sql<{ total: string; viewed: string }>`
+      SELECT COUNT(*) as total, COUNT(viewed_at) as viewed
+      FROM dump_recipients
+      WHERE dump_id = ${dumpId}
+    `;
+    return {
+      memeCount: parseInt(memeResult.rows[0]?.count || "0"),
+      recipientCount: parseInt(recipientResult.rows[0]?.total || "0"),
+      viewedCount: parseInt(recipientResult.rows[0]?.viewed || "0"),
+    };
   },
 
   // Recipient Groups
-  getGroupsByUser(userId: string): RecipientGroup[] {
-    return loadDb()
-      .recipient_groups.filter((g) => g.user_id === userId)
-      .sort((a, b) => a.name.localeCompare(b.name));
+  async getGroupsByUser(userId: string): Promise<RecipientGroup[]> {
+    const { rows } = await sql<RecipientGroup>`
+      SELECT id, user_id, name, created_at::text
+      FROM recipient_groups
+      WHERE user_id = ${userId}
+      ORDER BY name
+    `;
+    return rows;
   },
 
-  getGroupById(id: string): RecipientGroup | undefined {
-    return loadDb().recipient_groups.find((g) => g.id === id);
+  async getGroupById(id: string): Promise<RecipientGroup | undefined> {
+    const { rows } = await sql<RecipientGroup>`
+      SELECT id, user_id, name, created_at::text
+      FROM recipient_groups
+      WHERE id = ${id}
+    `;
+    return rows[0];
   },
 
-  createGroup(group: RecipientGroup): void {
-    const data = loadDb();
-    data.recipient_groups.push(group);
-    saveDb(data);
+  async createGroup(group: { id: string; user_id: string; name: string }): Promise<void> {
+    await sql`INSERT INTO recipient_groups (id, user_id, name) VALUES (${group.id}, ${group.user_id}, ${group.name})`;
   },
 
-  updateGroup(id: string, name: string): void {
-    const data = loadDb();
-    const group = data.recipient_groups.find((g) => g.id === id);
-    if (group) {
-      group.name = name;
-      saveDb(data);
-    }
+  async updateGroup(id: string, name: string): Promise<void> {
+    await sql`UPDATE recipient_groups SET name = ${name} WHERE id = ${id}`;
   },
 
-  deleteGroup(id: string): void {
-    const data = loadDb();
-    data.recipient_groups = data.recipient_groups.filter((g) => g.id !== id);
-    data.group_members = data.group_members.filter((m) => m.group_id !== id);
-    saveDb(data);
+  async deleteGroup(id: string): Promise<void> {
+    await sql`DELETE FROM recipient_groups WHERE id = ${id}`;
   },
 
   // Group Members
-  getMembersByGroup(groupId: string): GroupMember[] {
-    return loadDb()
-      .group_members.filter((m) => m.group_id === groupId)
-      .sort((a, b) => a.name.localeCompare(b.name));
+  async getMembersByGroup(groupId: string): Promise<GroupMember[]> {
+    const { rows } = await sql<GroupMember>`
+      SELECT id, group_id, name, email, created_at::text
+      FROM group_members
+      WHERE group_id = ${groupId}
+      ORDER BY name
+    `;
+    return rows;
   },
 
-  getMembersByGroups(groupIds: string[]): GroupMember[] {
-    return loadDb().group_members.filter((m) => groupIds.includes(m.group_id));
+  async getMembersByGroups(groupIds: string[]): Promise<GroupMember[]> {
+    if (groupIds.length === 0) return [];
+    const { rows } = await sql<GroupMember>`
+      SELECT id, group_id, name, email, created_at::text
+      FROM group_members
+      WHERE group_id = ANY(${groupIds}::uuid[])
+    `;
+    return rows;
   },
 
-  addMember(member: GroupMember): void {
-    const data = loadDb();
-    data.group_members.push(member);
-    saveDb(data);
+  async addMember(member: { id: string; group_id: string; name: string; email: string }): Promise<void> {
+    await sql`
+      INSERT INTO group_members (id, group_id, name, email)
+      VALUES (${member.id}, ${member.group_id}, ${member.name}, ${member.email})
+    `;
   },
 
-  updateMember(id: string, name: string, email: string): void {
-    const data = loadDb();
-    const member = data.group_members.find((m) => m.id === id);
-    if (member) {
-      member.name = name;
-      member.email = email;
-      saveDb(data);
+  async updateMember(id: string, name: string, email: string): Promise<void> {
+    await sql`UPDATE group_members SET name = ${name}, email = ${email} WHERE id = ${id}`;
+  },
+
+  async deleteMember(id: string): Promise<void> {
+    await sql`DELETE FROM group_members WHERE id = ${id}`;
+  },
+
+  async getGroupsWithMembers(userId: string): Promise<(RecipientGroup & { members: GroupMember[] })[]> {
+    const groups = await this.getGroupsByUser(userId);
+    const result: (RecipientGroup & { members: GroupMember[] })[] = [];
+    for (const group of groups) {
+      const members = await this.getMembersByGroup(group.id);
+      result.push({ ...group, members });
     }
-  },
-
-  deleteMember(id: string): void {
-    const data = loadDb();
-    data.group_members = data.group_members.filter((m) => m.id !== id);
-    saveDb(data);
-  },
-
-  getGroupsWithMembers(userId: string): (RecipientGroup & { members: GroupMember[] })[] {
-    const data = loadDb();
-    const groups = data.recipient_groups.filter((g) => g.user_id === userId);
-    return groups
-      .map((group) => ({
-        ...group,
-        members: data.group_members.filter((m) => m.group_id === group.id),
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name));
+    return result;
   },
 
   // Collections
-  getCollectionsByUser(userId: string): Collection[] {
-    return loadDb()
-      .collections.filter((c) => c.user_id === userId)
-      .sort((a, b) => a.name.localeCompare(b.name));
+  async getCollectionsByUser(userId: string): Promise<Collection[]> {
+    const { rows } = await sql<Collection>`
+      SELECT id, user_id, name, created_at::text
+      FROM collections
+      WHERE user_id = ${userId}
+      ORDER BY name
+    `;
+    return rows;
   },
 
-  getCollectionById(id: string): Collection | undefined {
-    return loadDb().collections.find((c) => c.id === id);
+  async getCollectionById(id: string): Promise<Collection | undefined> {
+    const { rows } = await sql<Collection>`
+      SELECT id, user_id, name, created_at::text
+      FROM collections
+      WHERE id = ${id}
+    `;
+    return rows[0];
   },
 
-  createCollection(collection: Collection): void {
-    const data = loadDb();
-    data.collections.push(collection);
-    saveDb(data);
+  async createCollection(collection: { id: string; user_id: string; name: string }): Promise<void> {
+    await sql`INSERT INTO collections (id, user_id, name) VALUES (${collection.id}, ${collection.user_id}, ${collection.name})`;
   },
 
-  updateCollection(id: string, name: string): void {
-    const data = loadDb();
-    const collection = data.collections.find((c) => c.id === id);
-    if (collection) {
-      collection.name = name;
-      saveDb(data);
-    }
+  async updateCollection(id: string, name: string): Promise<void> {
+    await sql`UPDATE collections SET name = ${name} WHERE id = ${id}`;
   },
 
-  deleteCollection(id: string): void {
-    const data = loadDb();
-    data.collections = data.collections.filter((c) => c.id !== id);
-    data.collection_memes = data.collection_memes.filter((cm) => cm.collection_id !== id);
-    saveDb(data);
+  async deleteCollection(id: string): Promise<void> {
+    await sql`DELETE FROM collections WHERE id = ${id}`;
   },
 
   // Collection Memes
-  getMemesByCollection(collectionId: string): Meme[] {
-    const data = loadDb();
-    const collectionMemes = data.collection_memes
-      .filter((cm) => cm.collection_id === collectionId)
-      .sort((a, b) => a.sort_order - b.sort_order);
-    return collectionMemes
-      .map((cm) => data.memes.find((m) => m.id === cm.meme_id))
-      .filter(Boolean) as Meme[];
+  async getMemesByCollection(collectionId: string): Promise<Meme[]> {
+    const { rows } = await sql<Meme>`
+      SELECT m.id, m.user_id, m.file_url, m.file_type, m.created_at::text
+      FROM memes m
+      JOIN collection_memes cm ON m.id = cm.meme_id
+      WHERE cm.collection_id = ${collectionId}
+      ORDER BY cm.sort_order
+    `;
+    return rows;
   },
 
-  getCollectionMemeIds(collectionId: string): string[] {
-    return loadDb()
-      .collection_memes.filter((cm) => cm.collection_id === collectionId)
-      .map((cm) => cm.meme_id);
+  async getCollectionMemeIds(collectionId: string): Promise<string[]> {
+    const { rows } = await sql<{ meme_id: string }>`
+      SELECT meme_id FROM collection_memes WHERE collection_id = ${collectionId}
+    `;
+    return rows.map((r) => r.meme_id);
   },
 
-  addMemeToCollection(collectionMeme: CollectionMeme): void {
-    const data = loadDb();
-    // Check if already exists
-    const exists = data.collection_memes.some(
-      (cm) => cm.collection_id === collectionMeme.collection_id && cm.meme_id === collectionMeme.meme_id
-    );
-    if (!exists) {
-      data.collection_memes.push(collectionMeme);
-      saveDb(data);
-    }
+  async addMemeToCollection(collectionMeme: { id: string; collection_id: string; meme_id: string; sort_order: number }): Promise<void> {
+    await sql`
+      INSERT INTO collection_memes (id, collection_id, meme_id, sort_order)
+      VALUES (${collectionMeme.id}, ${collectionMeme.collection_id}, ${collectionMeme.meme_id}, ${collectionMeme.sort_order})
+      ON CONFLICT (collection_id, meme_id) DO NOTHING
+    `;
   },
 
-  addMemesToCollection(collectionId: string, memeIds: string[]): void {
-    const data = loadDb();
-    const existingMemeIds = new Set(
-      data.collection_memes.filter((cm) => cm.collection_id === collectionId).map((cm) => cm.meme_id)
-    );
-    const maxOrder = Math.max(
-      0,
-      ...data.collection_memes.filter((cm) => cm.collection_id === collectionId).map((cm) => cm.sort_order)
-    );
-    let order = maxOrder + 1;
+  async addMemesToCollection(collectionId: string, memeIds: string[]): Promise<void> {
+    const { rows } = await sql<{ max_order: string }>`
+      SELECT COALESCE(MAX(sort_order), 0) as max_order FROM collection_memes WHERE collection_id = ${collectionId}
+    `;
+    let order = parseInt(rows[0]?.max_order || "0") + 1;
     for (const memeId of memeIds) {
-      if (!existingMemeIds.has(memeId)) {
-        data.collection_memes.push({
-          id: crypto.randomUUID(),
-          collection_id: collectionId,
-          meme_id: memeId,
-          sort_order: order++,
-          added_at: new Date().toISOString(),
-        });
-      }
+      await sql`
+        INSERT INTO collection_memes (collection_id, meme_id, sort_order)
+        VALUES (${collectionId}, ${memeId}, ${order++})
+        ON CONFLICT (collection_id, meme_id) DO NOTHING
+      `;
     }
-    saveDb(data);
   },
 
-  removeMemeFromCollection(collectionId: string, memeId: string): void {
-    const data = loadDb();
-    data.collection_memes = data.collection_memes.filter(
-      (cm) => !(cm.collection_id === collectionId && cm.meme_id === memeId)
-    );
-    saveDb(data);
+  async removeMemeFromCollection(collectionId: string, memeId: string): Promise<void> {
+    await sql`DELETE FROM collection_memes WHERE collection_id = ${collectionId} AND meme_id = ${memeId}`;
   },
 
-  getCollectionsWithMemes(userId: string): (Collection & { memes: Meme[]; memeCount: number })[] {
-    const data = loadDb();
-    const collections = data.collections.filter((c) => c.user_id === userId);
-    return collections
-      .map((collection) => {
-        const collectionMemes = data.collection_memes
-          .filter((cm) => cm.collection_id === collection.id)
-          .sort((a, b) => a.sort_order - b.sort_order);
-        const memes = collectionMemes
-          .map((cm) => data.memes.find((m) => m.id === cm.meme_id))
-          .filter(Boolean) as Meme[];
-        return {
-          ...collection,
-          memes: memes.slice(0, 4), // Preview only first 4
-          memeCount: memes.length,
-        };
-      })
-      .sort((a, b) => a.name.localeCompare(b.name));
+  async getCollectionsWithMemes(userId: string): Promise<(Collection & { memes: Meme[]; memeCount: number })[]> {
+    const collections = await this.getCollectionsByUser(userId);
+    const result: (Collection & { memes: Meme[]; memeCount: number })[] = [];
+    for (const collection of collections) {
+      const memes = await this.getMemesByCollection(collection.id);
+      result.push({
+        ...collection,
+        memes: memes.slice(0, 4), // Preview only first 4
+        memeCount: memes.length,
+      });
+    }
+    return result;
   },
 };
 

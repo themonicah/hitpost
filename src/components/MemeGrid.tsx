@@ -75,7 +75,7 @@ export default function MemeGrid({
           >
             {meme.file_type === "video" ? (
               <video
-                src={meme.file_path}
+                src={meme.file_url}
                 className="w-full h-full object-cover"
                 muted
                 playsInline
@@ -83,7 +83,7 @@ export default function MemeGrid({
               />
             ) : (
               <img
-                src={meme.file_path}
+                src={meme.file_url}
                 alt=""
                 className="w-full h-full object-cover"
                 loading="lazy"

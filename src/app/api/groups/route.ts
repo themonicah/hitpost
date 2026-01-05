@@ -1,5 +1,5 @@
 import { getSession } from "@/lib/auth";
-import db, { RecipientGroup } from "@/lib/db";
+import db from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
 import { v4 as uuid } from "uuid";
 
@@ -9,7 +9,7 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const groups = db.getGroupsWithMembers(user.id);
+  const groups = await db.getGroupsWithMembers(user.id);
   return NextResponse.json({ groups });
 }
 
@@ -26,16 +26,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Group name is required" }, { status: 400 });
     }
 
-    const group: RecipientGroup = {
-      id: uuid(),
+    const groupId = uuid();
+    await db.createGroup({
+      id: groupId,
       user_id: user.id,
       name: name.trim(),
-      created_at: new Date().toISOString(),
-    };
+    });
 
-    db.createGroup(group);
-
-    return NextResponse.json({ group });
+    return NextResponse.json({ group: { id: groupId, user_id: user.id, name: name.trim() } });
   } catch (error) {
     console.error("Create group error:", error);
     return NextResponse.json({ error: "Failed to create group" }, { status: 500 });

@@ -173,13 +173,13 @@ export default function LibraryContent({ userId }: LibraryContentProps) {
                           <div key={meme.id} className="relative overflow-hidden">
                             {meme.file_type === "video" ? (
                               <video
-                                src={meme.file_path}
+                                src={meme.file_url}
                                 className="w-full h-full object-cover"
                                 muted
                               />
                             ) : (
                               <img
-                                src={meme.file_path}
+                                src={meme.file_url}
                                 alt=""
                                 className="w-full h-full object-cover"
                               />

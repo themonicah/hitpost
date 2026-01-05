@@ -1,9 +1,8 @@
 import { getSession } from "@/lib/auth";
-import db, { Meme } from "@/lib/db";
+import db from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
 import { v4 as uuid } from "uuid";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
+import { put } from "@vercel/blob";
 
 export async function GET() {
   const user = await getSession();
@@ -11,7 +10,7 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const memes = db.getMemesByUser(user.id);
+  const memes = await db.getMemesByUser(user.id);
   return NextResponse.json({ memes });
 }
 
@@ -29,30 +28,34 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No files provided" }, { status: 400 });
     }
 
-    const uploadDir = path.join(process.cwd(), "public", "uploads");
-    await mkdir(uploadDir, { recursive: true });
-
-    const uploadedMemes: Meme[] = [];
+    const uploadedMemes: { id: string; user_id: string; file_url: string; file_type: string; created_at: string }[] = [];
 
     for (const file of files) {
-      const buffer = Buffer.from(await file.arrayBuffer());
       const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-      const filename = `${uuid()}.${ext}`;
-      const filepath = path.join(uploadDir, filename);
+      const filename = `memes/${user.id}/${uuid()}.${ext}`;
 
-      await writeFile(filepath, buffer);
+      // Upload to Vercel Blob
+      const blob = await put(filename, file, {
+        access: "public",
+      });
 
       const fileType = file.type.startsWith("video/") ? "video" : "image";
-      const meme: Meme = {
-        id: uuid(),
-        user_id: user.id,
-        file_path: `/uploads/${filename}`,
-        file_type: fileType as "image" | "video",
-        created_at: new Date().toISOString(),
-      };
+      const memeId = uuid();
 
-      db.createMeme(meme);
-      uploadedMemes.push(meme);
+      await db.createMeme({
+        id: memeId,
+        user_id: user.id,
+        file_url: blob.url,
+        file_type: fileType,
+      });
+
+      uploadedMemes.push({
+        id: memeId,
+        user_id: user.id,
+        file_url: blob.url,
+        file_type: fileType,
+        created_at: new Date().toISOString(),
+      });
     }
 
     return NextResponse.json({ memes: uploadedMemes });

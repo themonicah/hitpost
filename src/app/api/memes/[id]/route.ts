@@ -1,8 +1,7 @@
 import { getSession } from "@/lib/auth";
 import db from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
-import { unlink } from "fs/promises";
-import path from "path";
+import { del } from "@vercel/blob";
 
 export async function DELETE(
   req: NextRequest,
@@ -16,22 +15,21 @@ export async function DELETE(
   const { id } = await params;
 
   // Verify ownership
-  const meme = db.getMemeById(id);
+  const meme = await db.getMemeById(id);
 
   if (!meme || meme.user_id !== user.id) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  // Delete file
+  // Delete from Vercel Blob
   try {
-    const filepath = path.join(process.cwd(), "public", meme.file_path);
-    await unlink(filepath);
+    await del(meme.file_url);
   } catch {
     // File might not exist, continue anyway
   }
 
   // Delete from database
-  db.deleteMeme(id);
+  await db.deleteMeme(id);
 
   return NextResponse.json({ success: true });
 }

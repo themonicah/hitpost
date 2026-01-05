@@ -14,7 +14,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
 
   const { id } = await params;
 
-  const collection = db.getCollectionById(id);
+  const collection = await db.getCollectionById(id);
   if (!collection || collection.user_id !== user.id) {
     return NextResponse.json({ error: "Collection not found" }, { status: 404 });
   }
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     }
 
     // Verify memes belong to user
-    const userMemes = db.getMemesByUser(user.id);
+    const userMemes = await db.getMemesByUser(user.id);
     const userMemeIds = new Set(userMemes.map((m) => m.id));
     const allValid = memeIds.every((memeId: string) => userMemeIds.has(memeId));
 
@@ -35,7 +35,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "Invalid memes" }, { status: 400 });
     }
 
-    db.addMemesToCollection(id, memeIds);
+    await db.addMemesToCollection(id, memeIds);
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -52,7 +52,7 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
 
   const { id } = await params;
 
-  const collection = db.getCollectionById(id);
+  const collection = await db.getCollectionById(id);
   if (!collection || collection.user_id !== user.id) {
     return NextResponse.json({ error: "Collection not found" }, { status: 404 });
   }
@@ -64,7 +64,7 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "Meme ID is required" }, { status: 400 });
     }
 
-    db.removeMemeFromCollection(id, memeId);
+    await db.removeMemeFromCollection(id, memeId);
 
     return NextResponse.json({ success: true });
   } catch (error) {

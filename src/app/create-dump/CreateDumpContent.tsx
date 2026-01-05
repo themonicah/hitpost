@@ -459,9 +459,9 @@ export default function CreateDumpContent({ userId }: CreateDumpContentProps) {
                   className="aspect-square rounded overflow-hidden bg-gray-100 dark:bg-gray-800"
                 >
                   {meme.file_type === "video" ? (
-                    <video src={meme.file_path} className="w-full h-full object-cover" muted />
+                    <video src={meme.file_url} className="w-full h-full object-cover" muted />
                   ) : (
-                    <img src={meme.file_path} alt="" className="w-full h-full object-cover" />
+                    <img src={meme.file_url} alt="" className="w-full h-full object-cover" />
                   )}
                 </div>
               ))}

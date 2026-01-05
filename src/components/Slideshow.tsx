@@ -129,7 +129,7 @@ export default function Slideshow({
         {currentMeme.file_type === "video" ? (
           <video
             ref={videoRef}
-            src={currentMeme.file_path}
+            src={currentMeme.file_url}
             className="max-w-full max-h-full object-contain"
             controls
             playsInline
@@ -137,7 +137,7 @@ export default function Slideshow({
           />
         ) : (
           <img
-            src={currentMeme.file_path}
+            src={currentMeme.file_url}
             alt=""
             className="max-w-full max-h-full object-contain"
           />

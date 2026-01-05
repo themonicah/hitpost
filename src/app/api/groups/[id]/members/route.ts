@@ -1,5 +1,5 @@
 import { getSession } from "@/lib/auth";
-import db, { GroupMember } from "@/lib/db";
+import db from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
 import { v4 as uuid } from "uuid";
 
@@ -15,12 +15,12 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
 
   const { id } = await params;
 
-  const group = db.getGroupById(id);
+  const group = await db.getGroupById(id);
   if (!group || group.user_id !== user.id) {
     return NextResponse.json({ error: "Group not found" }, { status: 404 });
   }
 
-  const members = db.getMembersByGroup(id);
+  const members = await db.getMembersByGroup(id);
   return NextResponse.json({ members });
 }
 
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
 
   const { id } = await params;
 
-  const group = db.getGroupById(id);
+  const group = await db.getGroupById(id);
   if (!group || group.user_id !== user.id) {
     return NextResponse.json({ error: "Group not found" }, { status: 404 });
   }
@@ -48,17 +48,15 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "Valid email is required" }, { status: 400 });
     }
 
-    const member: GroupMember = {
-      id: uuid(),
+    const memberId = uuid();
+    await db.addMember({
+      id: memberId,
       group_id: id,
       name: name.trim(),
       email: email.trim().toLowerCase(),
-      created_at: new Date().toISOString(),
-    };
+    });
 
-    db.addMember(member);
-
-    return NextResponse.json({ member });
+    return NextResponse.json({ member: { id: memberId, group_id: id, name: name.trim(), email: email.trim().toLowerCase() } });
   } catch (error) {
     console.error("Add member error:", error);
     return NextResponse.json({ error: "Failed to add member" }, { status: 500 });
@@ -73,7 +71,7 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
 
   const { id } = await params;
 
-  const group = db.getGroupById(id);
+  const group = await db.getGroupById(id);
   if (!group || group.user_id !== user.id) {
     return NextResponse.json({ error: "Group not found" }, { status: 404 });
   }
@@ -93,7 +91,7 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "Valid email is required" }, { status: 400 });
     }
 
-    db.updateMember(memberId, name.trim(), email.trim().toLowerCase());
+    await db.updateMember(memberId, name.trim(), email.trim().toLowerCase());
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -110,7 +108,7 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
 
   const { id } = await params;
 
-  const group = db.getGroupById(id);
+  const group = await db.getGroupById(id);
   if (!group || group.user_id !== user.id) {
     return NextResponse.json({ error: "Group not found" }, { status: 404 });
   }
@@ -122,7 +120,7 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "Member ID is required" }, { status: 400 });
     }
 
-    db.deleteMember(memberId);
+    await db.deleteMember(memberId);
 
     return NextResponse.json({ success: true });
   } catch (error) {

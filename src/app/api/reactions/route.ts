@@ -10,13 +10,13 @@ export async function POST(req: NextRequest) {
     }
 
     // Verify recipient exists
-    const recipient = db.getRecipientById(recipientId);
+    const recipient = await db.getRecipientById(recipientId);
 
     if (!recipient) {
       return NextResponse.json({ error: "Invalid recipient" }, { status: 400 });
     }
 
-    db.upsertReaction(recipientId, memeId, emoji || null);
+    await db.upsertReaction(recipientId, memeId, emoji || null);
 
     return NextResponse.json({ success: true });
   } catch (error) {

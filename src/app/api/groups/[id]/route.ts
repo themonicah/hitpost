@@ -14,7 +14,7 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
 
   const { id } = await params;
 
-  const group = db.getGroupById(id);
+  const group = await db.getGroupById(id);
   if (!group || group.user_id !== user.id) {
     return NextResponse.json({ error: "Group not found" }, { status: 404 });
   }
@@ -26,7 +26,7 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "Group name is required" }, { status: 400 });
     }
 
-    db.updateGroup(id, name.trim());
+    await db.updateGroup(id, name.trim());
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -43,12 +43,12 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
 
   const { id } = await params;
 
-  const group = db.getGroupById(id);
+  const group = await db.getGroupById(id);
   if (!group || group.user_id !== user.id) {
     return NextResponse.json({ error: "Group not found" }, { status: 404 });
   }
 
-  db.deleteGroup(id);
+  await db.deleteGroup(id);
 
   return NextResponse.json({ success: true });
 }
