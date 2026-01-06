@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Nav from "@/components/Nav";
+import Header from "@/components/Header";
+import TabBar from "@/components/TabBar";
 
 interface GroupMember {
   id: string;
@@ -47,7 +48,6 @@ export default function GroupsPage() {
       const data = await res.json();
       setGroups(data.groups || []);
 
-      // Get user email from session
       const sessionRes = await fetch("/api/auth/session");
       if (sessionRes.ok) {
         const sessionData = await sessionRes.json();
@@ -104,13 +104,8 @@ export default function GroupsPage() {
     if (!confirm("Delete this group and all its members?")) return;
 
     try {
-      const res = await fetch(`/api/groups/${id}`, {
-        method: "DELETE",
-      });
-
-      if (res.ok) {
-        fetchGroups();
-      }
+      const res = await fetch(`/api/groups/${id}`, { method: "DELETE" });
+      if (res.ok) fetchGroups();
     } catch (error) {
       console.error("Failed to delete group:", error);
     }
@@ -166,9 +161,7 @@ export default function GroupsPage() {
         body: JSON.stringify({ memberId }),
       });
 
-      if (res.ok) {
-        fetchGroups();
-      }
+      if (res.ok) fetchGroups();
     } catch (error) {
       console.error("Failed to delete member:", error);
     }
@@ -176,49 +169,53 @@ export default function GroupsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-        <Nav email={userEmail} />
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-20">
+        <Header email={userEmail || "Loading..."} title="Groups" />
         <main className="max-w-4xl mx-auto px-4 py-6">
-          <p className="text-center text-gray-500">Loading...</p>
+          <div className="flex items-center justify-center py-20">
+            <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          </div>
         </main>
+        <TabBar />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      <Nav email={userEmail} />
-      <main className="max-w-4xl mx-auto px-4 py-6">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold">Recipient Groups</h1>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-20">
+      <Header
+        email={userEmail}
+        title="Groups"
+        rightAction={
           <button
             onClick={() => setShowNewGroup(true)}
-            className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium"
+            className="flex items-center gap-1 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-full text-sm font-medium"
           >
-            + New Group
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            New
           </button>
-        </div>
+        }
+      />
 
-        <p className="text-gray-500 mb-6">
-          Create groups to quickly send meme dumps to multiple people at once.
-        </p>
-
+      <main className="max-w-4xl mx-auto px-4 py-4">
         {/* New Group Form */}
         {showNewGroup && (
-          <div className="bg-white dark:bg-gray-900 rounded-xl p-4 mb-6 shadow-sm">
-            <h2 className="font-semibold mb-3">Create New Group</h2>
+          <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 mb-4 shadow-sm">
+            <h2 className="font-semibold mb-3">New Group</h2>
             <div className="flex gap-2">
               <input
                 type="text"
                 value={newGroupName}
                 onChange={(e) => setNewGroupName(e.target.value)}
-                placeholder="Group name (e.g., Family, Work Friends)"
-                className="flex-1 px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800"
+                placeholder="Group name"
+                className="flex-1 px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-800"
                 autoFocus
               />
               <button
                 onClick={createGroup}
-                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium"
+                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-medium"
               >
                 Create
               </button>
@@ -227,7 +224,7 @@ export default function GroupsPage() {
                   setShowNewGroup(false);
                   setNewGroupName("");
                 }}
-                className="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg font-medium"
+                className="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-xl font-medium"
               >
                 Cancel
               </button>
@@ -237,8 +234,18 @@ export default function GroupsPage() {
 
         {/* Groups List */}
         {groups.length === 0 ? (
-          <div className="bg-white dark:bg-gray-900 rounded-xl p-8 text-center">
-            <p className="text-gray-500 mb-4">No groups yet</p>
+          <div className="text-center py-16">
+            <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
+              <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+              No groups yet
+            </h3>
+            <p className="text-gray-500 mb-4 text-sm">
+              Create groups to quickly send dumps to multiple people
+            </p>
             <button
               onClick={() => setShowNewGroup(true)}
               className="text-blue-500 hover:text-blue-600 font-medium"
@@ -247,18 +254,16 @@ export default function GroupsPage() {
             </button>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {groups.map((group) => (
               <div
                 key={group.id}
-                className="bg-white dark:bg-gray-900 rounded-xl shadow-sm overflow-hidden"
+                className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm overflow-hidden"
               >
                 {/* Group Header */}
                 <div
-                  className="p-4 flex items-center justify-between cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
-                  onClick={() =>
-                    setExpandedGroup(expandedGroup === group.id ? null : group.id)
-                  }
+                  className="p-4 flex items-center justify-between cursor-pointer"
+                  onClick={() => setExpandedGroup(expandedGroup === group.id ? null : group.id)}
                 >
                   {editingGroup === group.id ? (
                     <div className="flex gap-2 flex-1 mr-4" onClick={(e) => e.stopPropagation()}>
@@ -266,12 +271,12 @@ export default function GroupsPage() {
                         type="text"
                         value={editGroupName}
                         onChange={(e) => setEditGroupName(e.target.value)}
-                        className="flex-1 px-3 py-1 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800"
+                        className="flex-1 px-3 py-1 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-800"
                         autoFocus
                       />
                       <button
                         onClick={() => updateGroup(group.id)}
-                        className="px-3 py-1 bg-blue-500 text-white rounded-lg text-sm"
+                        className="px-3 py-1 bg-blue-500 text-white rounded-xl text-sm"
                       >
                         Save
                       </button>
@@ -280,17 +285,24 @@ export default function GroupsPage() {
                           setEditingGroup(null);
                           setEditGroupName("");
                         }}
-                        className="px-3 py-1 bg-gray-200 dark:bg-gray-700 rounded-lg text-sm"
+                        className="px-3 py-1 bg-gray-200 dark:bg-gray-700 rounded-xl text-sm"
                       >
                         Cancel
                       </button>
                     </div>
                   ) : (
-                    <div>
-                      <h3 className="font-semibold">{group.name}</h3>
-                      <p className="text-sm text-gray-500">
-                        {group.members.length} member{group.members.length !== 1 ? "s" : ""}
-                      </p>
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 rounded-full flex items-center justify-center">
+                        <span className="text-blue-600 dark:text-blue-400 font-bold">
+                          {group.name.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                      <div>
+                        <h3 className="font-semibold">{group.name}</h3>
+                        <p className="text-sm text-gray-500">
+                          {group.members.length} member{group.members.length !== 1 ? "s" : ""}
+                        </p>
+                      </div>
                     </div>
                   )}
                   <div className="flex items-center gap-2">
@@ -304,7 +316,9 @@ export default function GroupsPage() {
                           }}
                           className="p-2 text-gray-400 hover:text-blue-500"
                         >
-                          Edit
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                          </svg>
                         </button>
                         <button
                           onClick={(e) => {
@@ -313,24 +327,28 @@ export default function GroupsPage() {
                           }}
                           className="p-2 text-gray-400 hover:text-red-500"
                         >
-                          Delete
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
                         </button>
                       </>
                     )}
-                    <span
-                      className={`transform transition-transform ${
+                    <svg
+                      className={`w-5 h-5 text-gray-400 transition-transform ${
                         expandedGroup === group.id ? "rotate-180" : ""
                       }`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
                     >
-                      ▼
-                    </span>
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
                   </div>
                 </div>
 
-                {/* Expanded Members */}
+                {/* Members */}
                 {expandedGroup === group.id && (
                   <div className="border-t border-gray-100 dark:border-gray-800 p-4">
-                    {/* Members List */}
                     {group.members.length === 0 ? (
                       <p className="text-gray-500 text-sm mb-4">No members yet</p>
                     ) : (
@@ -338,7 +356,7 @@ export default function GroupsPage() {
                         {group.members.map((member) => (
                           <div
                             key={member.id}
-                            className="flex items-center justify-between py-2 px-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
+                            className="flex items-center justify-between py-2 px-3 bg-gray-50 dark:bg-gray-800 rounded-xl"
                           >
                             {editingMember?.id === member.id ? (
                               <div className="flex gap-2 flex-1">
@@ -349,7 +367,7 @@ export default function GroupsPage() {
                                     setEditingMember({ ...editingMember, name: e.target.value })
                                   }
                                   placeholder="Name"
-                                  className="flex-1 px-2 py-1 border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-gray-900 text-sm"
+                                  className="flex-1 px-2 py-1 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-sm"
                                 />
                                 <input
                                   type="email"
@@ -358,17 +376,17 @@ export default function GroupsPage() {
                                     setEditingMember({ ...editingMember, email: e.target.value })
                                   }
                                   placeholder="Email"
-                                  className="flex-1 px-2 py-1 border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-gray-900 text-sm"
+                                  className="flex-1 px-2 py-1 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-sm"
                                 />
                                 <button
                                   onClick={() => updateMember(group.id)}
-                                  className="px-2 py-1 bg-blue-500 text-white rounded text-sm"
+                                  className="px-2 py-1 bg-blue-500 text-white rounded-lg text-sm"
                                 >
                                   Save
                                 </button>
                                 <button
                                   onClick={() => setEditingMember(null)}
-                                  className="px-2 py-1 bg-gray-200 dark:bg-gray-700 rounded text-sm"
+                                  className="px-2 py-1 bg-gray-200 dark:bg-gray-700 rounded-lg text-sm"
                                 >
                                   Cancel
                                 </button>
@@ -379,7 +397,7 @@ export default function GroupsPage() {
                                   <p className="font-medium text-sm">{member.name}</p>
                                   <p className="text-xs text-gray-500">{member.email}</p>
                                 </div>
-                                <div className="flex gap-2">
+                                <div className="flex gap-1">
                                   <button
                                     onClick={() =>
                                       setEditingMember({
@@ -388,15 +406,19 @@ export default function GroupsPage() {
                                         email: member.email,
                                       })
                                     }
-                                    className="text-xs text-gray-400 hover:text-blue-500"
+                                    className="p-1.5 text-gray-400 hover:text-blue-500"
                                   >
-                                    Edit
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                    </svg>
                                   </button>
                                   <button
                                     onClick={() => deleteMember(group.id, member.id)}
-                                    className="text-xs text-gray-400 hover:text-red-500"
+                                    className="p-1.5 text-gray-400 hover:text-red-500"
                                   >
-                                    Remove
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
                                   </button>
                                 </div>
                               </>
@@ -406,49 +428,46 @@ export default function GroupsPage() {
                       </div>
                     )}
 
-                    {/* Add Member Form */}
+                    {/* Add Member */}
                     {newMember?.groupId === group.id ? (
                       <div className="flex gap-2">
                         <input
                           type="text"
                           value={newMember.name}
-                          onChange={(e) =>
-                            setNewMember({ ...newMember, name: e.target.value })
-                          }
+                          onChange={(e) => setNewMember({ ...newMember, name: e.target.value })}
                           placeholder="Name"
-                          className="flex-1 px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-sm"
+                          className="flex-1 px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-800 text-sm"
                           autoFocus
                         />
                         <input
                           type="email"
                           value={newMember.email}
-                          onChange={(e) =>
-                            setNewMember({ ...newMember, email: e.target.value })
-                          }
+                          onChange={(e) => setNewMember({ ...newMember, email: e.target.value })}
                           placeholder="Email"
-                          className="flex-1 px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-sm"
+                          className="flex-1 px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-800 text-sm"
                         />
                         <button
                           onClick={addMember}
-                          className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium"
+                          className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-xl text-sm font-medium"
                         >
                           Add
                         </button>
                         <button
                           onClick={() => setNewMember(null)}
-                          className="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg text-sm font-medium"
+                          className="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-xl text-sm font-medium"
                         >
                           Cancel
                         </button>
                       </div>
                     ) : (
                       <button
-                        onClick={() =>
-                          setNewMember({ groupId: group.id, name: "", email: "" })
-                        }
-                        className="text-blue-500 hover:text-blue-600 text-sm font-medium"
+                        onClick={() => setNewMember({ groupId: group.id, name: "", email: "" })}
+                        className="flex items-center gap-1 text-blue-500 hover:text-blue-600 text-sm font-medium"
                       >
-                        + Add member
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                        Add member
                       </button>
                     )}
                   </div>
@@ -458,6 +477,8 @@ export default function GroupsPage() {
           </div>
         )}
       </main>
+
+      <TabBar />
     </div>
   );
 }

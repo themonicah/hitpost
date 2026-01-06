@@ -39,3 +39,19 @@ html {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Safe area for iOS devices */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Prevent text selection on touch */
+.select-none {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Smooth transitions */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
