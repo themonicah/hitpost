@@ -5,6 +5,8 @@ import db, { Reaction } from "@/lib/db";
 import Link from "next/link";
 import CopyLinkButton from "./CopyLinkButton";
 
+export const dynamic = "force-dynamic";
+
 interface DumpDetailPageProps {
   params: Promise<{ dumpId: string }>;
 }
