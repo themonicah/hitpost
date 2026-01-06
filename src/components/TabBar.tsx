@@ -44,7 +44,7 @@ const tabs = [
   },
   {
     href: "/groups",
-    label: "Groups",
+    label: "Circles",
     icon: (active: boolean) => (
       <svg
         className={`w-6 h-6 ${active ? "text-blue-500" : "text-gray-400"}`}

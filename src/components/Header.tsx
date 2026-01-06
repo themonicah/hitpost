@@ -15,6 +15,8 @@ export default function Header({
   showBack,
   rightAction,
 }: HeaderProps) {
+  // Rename labels for consistency
+  const displayTitle = title === "Groups" ? "Circles" : title;
   const router = useRouter();
 
   async function handleLogout() {
@@ -38,7 +40,7 @@ export default function Header({
                 </svg>
               </button>
             )}
-            <h1 className="font-bold text-xl">{title || "HitPost"}</h1>
+            <h1 className="font-bold text-xl">{displayTitle || "HitPost"}</h1>
           </div>
 
           <div className="flex items-center gap-3">

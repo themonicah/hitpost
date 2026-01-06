@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Nav from "@/components/Nav";
+import Header from "@/components/Header";
+import TabBar from "@/components/TabBar";
 import Link from "next/link";
 import { Meme } from "@/lib/db";
 
@@ -54,7 +55,7 @@ export default function CollectionDetailPage() {
         return;
       }
       if (res.status === 404) {
-        router.push("/library");
+        router.push("/");
         return;
       }
       if (res.ok) {
@@ -64,7 +65,7 @@ export default function CollectionDetailPage() {
         setEditName(data.collection.name);
       }
     } catch (error) {
-      console.error("Failed to fetch collection:", error);
+      console.error("Failed to fetch dump:", error);
     } finally {
       setLoading(false);
     }
@@ -85,7 +86,7 @@ export default function CollectionDetailPage() {
         setIsEditing(false);
       }
     } catch (error) {
-      console.error("Failed to update collection:", error);
+      console.error("Failed to update dump:", error);
     }
   }
 
@@ -106,7 +107,7 @@ export default function CollectionDetailPage() {
   }
 
   async function deleteCollection() {
-    if (!confirm("Delete this collection? (Memes will not be deleted)")) return;
+    if (!confirm("Delete this dump? (Memes will not be deleted)")) return;
 
     try {
       const res = await fetch(`/api/collections/${collectionId}`, {
@@ -114,129 +115,132 @@ export default function CollectionDetailPage() {
       });
 
       if (res.ok) {
-        router.push("/library");
+        router.push("/");
       }
     } catch (error) {
-      console.error("Failed to delete collection:", error);
+      console.error("Failed to delete dump:", error);
     }
   }
 
   function sendCollection() {
-    // Navigate to create dump page with this collection's memes pre-selected
     const memeIds = memes.map((m) => m.id).join(",");
-    router.push(`/create-dump?memes=${memeIds}&from=collection&collectionId=${collectionId}`);
+    router.push(`/dumps/create?memes=${memeIds}&from=collection&collectionId=${collectionId}`);
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-        <Nav email={userEmail} />
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-20">
+        <Header email={userEmail || "Loading..."} title="Dump" showBack />
         <main className="max-w-4xl mx-auto px-4 py-6">
-          <p className="text-center text-gray-500">Loading...</p>
+          <div className="flex items-center justify-center py-20">
+            <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          </div>
         </main>
+        <TabBar />
       </div>
     );
   }
 
   if (!collection) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-        <Nav email={userEmail} />
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-20">
+        <Header email={userEmail} title="Dump" showBack />
         <main className="max-w-4xl mx-auto px-4 py-6">
-          <p className="text-center text-gray-500">Collection not found</p>
+          <p className="text-center text-gray-500">Dump not found</p>
         </main>
+        <TabBar />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      <Nav email={userEmail} />
-      <main className="max-w-4xl mx-auto px-4 py-6">
-        <Link
-          href="/library"
-          className="text-blue-500 hover:text-blue-600 text-sm mb-4 inline-block"
-        >
-          &larr; Back to Library
-        </Link>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-20">
+      <Header email={userEmail} title={collection.name} showBack />
 
-        <div className="flex items-start justify-between mb-6">
-          <div className="flex-1">
-            {isEditing ? (
-              <div className="flex gap-2 items-center">
-                <input
-                  type="text"
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  className="text-2xl font-bold bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1"
-                  autoFocus
-                />
-                <button
-                  onClick={updateName}
-                  className="px-3 py-1 bg-blue-500 text-white rounded-lg text-sm"
-                >
-                  Save
-                </button>
-                <button
-                  onClick={() => {
-                    setIsEditing(false);
-                    setEditName(collection.name);
-                  }}
-                  className="px-3 py-1 bg-gray-200 dark:bg-gray-700 rounded-lg text-sm"
-                >
-                  Cancel
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-bold">{collection.name}</h1>
-                <button
-                  onClick={() => setIsEditing(true)}
-                  className="text-gray-400 hover:text-blue-500 text-sm"
-                >
-                  Edit
-                </button>
-              </div>
-            )}
-            <p className="text-gray-500 mt-1">
-              {memes.length} meme{memes.length !== 1 ? "s" : ""}
-            </p>
-          </div>
-
-          <div className="flex gap-2">
-            {memes.length > 0 && (
+      <main className="max-w-4xl mx-auto px-4 py-4">
+        {/* Header with edit */}
+        <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow-sm mb-4">
+          {isEditing ? (
+            <div className="flex gap-2 items-center">
+              <input
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                className="flex-1 text-lg font-bold bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2"
+                autoFocus
+              />
               <button
-                onClick={sendCollection}
-                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium"
+                onClick={updateName}
+                className="px-4 py-2 bg-blue-500 text-white rounded-xl text-sm font-medium"
               >
-                Send This Collection
+                Save
               </button>
-            )}
-            <button
-              onClick={deleteCollection}
-              className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium"
-            >
-              Delete
-            </button>
-          </div>
+              <button
+                onClick={() => {
+                  setIsEditing(false);
+                  setEditName(collection.name);
+                }}
+                className="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-xl text-sm font-medium"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold">{collection.name}</h2>
+                <p className="text-sm text-gray-500">
+                  {memes.length} meme{memes.length !== 1 ? "s" : ""}
+                </p>
+              </div>
+              <button
+                onClick={() => setIsEditing(true)}
+                className="text-blue-500 text-sm font-medium"
+              >
+                Edit
+              </button>
+            </div>
+          )}
         </div>
 
+        {/* Actions */}
+        <div className="flex gap-2 mb-4">
+          {memes.length > 0 && (
+            <button
+              onClick={sendCollection}
+              className="flex-1 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-2xl font-medium flex items-center justify-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+              </svg>
+              Send This Dump
+            </button>
+          )}
+          <button
+            onClick={deleteCollection}
+            className="px-4 py-3 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-2xl font-medium"
+          >
+            Delete
+          </button>
+        </div>
+
+        {/* Memes grid */}
         {memes.length === 0 ? (
-          <div className="bg-white dark:bg-gray-900 rounded-xl p-8 text-center">
-            <p className="text-gray-500 mb-4">This collection is empty</p>
+          <div className="bg-white dark:bg-gray-900 rounded-2xl p-8 text-center">
+            <p className="text-gray-500 mb-4">This dump is empty</p>
             <Link
-              href="/library"
+              href="/"
               className="text-blue-500 hover:text-blue-600 font-medium"
             >
               Add memes from your library
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-1 rounded-2xl overflow-hidden">
             {memes.map((meme) => (
               <div
                 key={meme.id}
-                className="relative aspect-square rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800 group"
+                className="relative aspect-square bg-gray-100 dark:bg-gray-800 group"
               >
                 {meme.file_type === "video" ? (
                   <video
@@ -256,14 +260,14 @@ export default function CollectionDetailPage() {
                 )}
 
                 {meme.file_type === "video" && (
-                  <div className="absolute bottom-2 left-2 bg-black/50 text-white text-xs px-1.5 py-0.5 rounded">
+                  <div className="absolute bottom-1 left-1 bg-black/50 text-white text-xs px-1.5 py-0.5 rounded">
                     Video
                   </div>
                 )}
 
                 <button
                   onClick={() => removeMeme(meme.id)}
-                  className="absolute top-2 right-2 w-8 h-8 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="absolute top-1 right-1 w-7 h-7 bg-black/50 hover:bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-sm"
                 >
                   &times;
                 </button>
@@ -272,6 +276,8 @@ export default function CollectionDetailPage() {
           </div>
         )}
       </main>
+
+      <TabBar />
     </div>
   );
 }

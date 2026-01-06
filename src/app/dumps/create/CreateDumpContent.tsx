@@ -300,7 +300,7 @@ export default function CreateDumpContent({ userId }: CreateDumpContentProps) {
                       : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
                   }`}
                 >
-                  Collection
+                  Dump
                 </button>
               </div>
 
@@ -369,7 +369,7 @@ export default function CreateDumpContent({ userId }: CreateDumpContentProps) {
           {/* Groups selection */}
           {groups.length > 0 && (
             <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow-sm">
-              <h2 className="font-semibold mb-3 text-sm text-gray-500 uppercase tracking-wide">Groups</h2>
+              <h2 className="font-semibold mb-3 text-sm text-gray-500 uppercase tracking-wide">Circles</h2>
               <div className="space-y-2">
                 {groups.map((group) => (
                   <button
@@ -410,7 +410,7 @@ export default function CreateDumpContent({ userId }: CreateDumpContentProps) {
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
-                Manage groups
+                Manage circles
               </Link>
             </div>
           )}

@@ -116,7 +116,7 @@ export default function LibraryContent({ userId }: LibraryContentProps) {
   }
 
   async function deleteCollection(id: string) {
-    if (!confirm("Delete this collection? (Memes will not be deleted)")) return;
+    if (!confirm("Delete this dump? (Memes will not be deleted)")) return;
 
     try {
       const res = await fetch(`/api/collections/${id}`, {
@@ -143,20 +143,20 @@ export default function LibraryContent({ userId }: LibraryContentProps) {
     <div className="space-y-6">
       <MemeUploader onUpload={fetchMemes} />
 
-      {/* Collections Section */}
+      {/* Dumps Section */}
       <div className="bg-white dark:bg-gray-900 rounded-xl p-4 shadow-sm">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">Collections</h2>
+          <h2 className="text-lg font-semibold">Dumps</h2>
           {collections.length > 0 && (
             <span className="text-sm text-gray-500">
-              {collections.length} collection{collections.length !== 1 ? "s" : ""}
+              {collections.length} dump{collections.length !== 1 ? "s" : ""}
             </span>
           )}
         </div>
 
         {collections.length === 0 ? (
           <p className="text-gray-500 text-sm">
-            No collections yet. Select memes below to create one.
+            No dumps yet. Select memes below to create one.
           </p>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -247,26 +247,26 @@ export default function LibraryContent({ userId }: LibraryContentProps) {
                 onClick={() => setShowNewCollection(true)}
                 className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium"
               >
-                Create Collection
+                Create Dump
               </button>
               {collections.length > 0 && (
                 <button
                   onClick={() => setShowAddToCollection(true)}
                   className="px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium"
                 >
-                  Add to Collection
+                  Add to Dump
                 </button>
               )}
             </div>
 
-            {/* New Collection Form */}
+            {/* New Dump Form */}
             {showNewCollection && (
               <div className="mt-3 flex gap-2">
                 <input
                   type="text"
                   value={newCollectionName}
                   onChange={(e) => setNewCollectionName(e.target.value)}
-                  placeholder="Collection name"
+                  placeholder="Dump name"
                   className="flex-1 px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-sm"
                   autoFocus
                 />
@@ -289,7 +289,7 @@ export default function LibraryContent({ userId }: LibraryContentProps) {
               </div>
             )}
 
-            {/* Add to Collection Dropdown */}
+            {/* Add to Dump Dropdown */}
             {showAddToCollection && (
               <div className="mt-3 flex flex-wrap gap-2">
                 {collections.map((collection) => (

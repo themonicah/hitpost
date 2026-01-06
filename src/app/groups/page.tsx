@@ -101,7 +101,7 @@ export default function GroupsPage() {
   }
 
   async function deleteGroup(id: string) {
-    if (!confirm("Delete this group and all its members?")) return;
+    if (!confirm("Delete this circle and all its members?")) return;
 
     try {
       const res = await fetch(`/api/groups/${id}`, { method: "DELETE" });
@@ -170,7 +170,7 @@ export default function GroupsPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-20">
-        <Header email={userEmail || "Loading..."} title="Groups" />
+        <Header email={userEmail || "Loading..."} title="Circles" />
         <main className="max-w-4xl mx-auto px-4 py-6">
           <div className="flex items-center justify-center py-20">
             <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
@@ -185,7 +185,7 @@ export default function GroupsPage() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-20">
       <Header
         email={userEmail}
-        title="Groups"
+        title="Circles"
         rightAction={
           <button
             onClick={() => setShowNewGroup(true)}
@@ -203,13 +203,13 @@ export default function GroupsPage() {
         {/* New Group Form */}
         {showNewGroup && (
           <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 mb-4 shadow-sm">
-            <h2 className="font-semibold mb-3">New Group</h2>
+            <h2 className="font-semibold mb-3">New Circle</h2>
             <div className="flex gap-2">
               <input
                 type="text"
                 value={newGroupName}
                 onChange={(e) => setNewGroupName(e.target.value)}
-                placeholder="Group name"
+                placeholder="Circle name"
                 className="flex-1 px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-800"
                 autoFocus
               />
@@ -241,16 +241,16 @@ export default function GroupsPage() {
               </svg>
             </div>
             <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-              No groups yet
+              No circles yet
             </h3>
             <p className="text-gray-500 mb-4 text-sm">
-              Create groups to quickly send dumps to multiple people
+              Create circles to quickly send dumps to multiple people
             </p>
             <button
               onClick={() => setShowNewGroup(true)}
               className="text-blue-500 hover:text-blue-600 font-medium"
             >
-              Create your first group
+              Create your first circle
             </button>
           </div>
         ) : (
