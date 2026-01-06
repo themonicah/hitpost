@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 const tabs = [
   {
     href: "/",
-    label: "Library",
+    label: "Memes",
     icon: (active: boolean) => (
       <svg
         className={`w-6 h-6 ${active ? "text-blue-500" : "text-gray-400"}`}

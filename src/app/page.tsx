@@ -34,7 +34,7 @@ export default async function Home() {
   // Show meme library when logged in
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-20">
-      <Header email={user.email} title="Library" />
+      <Header email={user.email} title="Memes" />
       <main className="max-w-4xl mx-auto px-4 py-4">
         <HomeContent userId={user.id} />
       </main>
