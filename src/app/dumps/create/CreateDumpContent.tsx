@@ -275,55 +275,6 @@ export default function CreateDumpContent({ userId }: CreateDumpContentProps) {
       {/* Step 1: Select Memes */}
       {step === "memes" && (
         <div className="space-y-4">
-          {/* Source selector */}
-          {collections.length > 0 && (
-            <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow-sm">
-              <div className="flex gap-2 mb-3">
-                <button
-                  onClick={() => {
-                    setMemeSource("library");
-                    setSelectedCollectionId(null);
-                  }}
-                  className={`flex-1 py-2 rounded-xl font-medium text-sm transition-colors ${
-                    memeSource === "library"
-                      ? "bg-blue-500 text-white"
-                      : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
-                  }`}
-                >
-                  All Memes
-                </button>
-                <button
-                  onClick={() => setMemeSource("collection")}
-                  className={`flex-1 py-2 rounded-xl font-medium text-sm transition-colors ${
-                    memeSource === "collection"
-                      ? "bg-blue-500 text-white"
-                      : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
-                  }`}
-                >
-                  Dump
-                </button>
-              </div>
-
-              {memeSource === "collection" && (
-                <div className="flex flex-wrap gap-2">
-                  {collections.map((collection) => (
-                    <button
-                      key={collection.id}
-                      onClick={() => selectCollection(collection.id)}
-                      className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                        selectedCollectionId === collection.id
-                          ? "bg-green-500 text-white"
-                          : "bg-gray-100 dark:bg-gray-800"
-                      }`}
-                    >
-                      {collection.name} ({collection.memeCount})
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
           {/* Selection count */}
           <div className="flex items-center justify-between px-1">
             <span className="text-sm text-gray-500">
@@ -341,9 +292,7 @@ export default function CreateDumpContent({ userId }: CreateDumpContentProps) {
 
           {/* Meme grid */}
           <MemeGrid
-            memes={memeSource === "collection" && selectedCollectionId
-              ? memes.filter((m) => selectedMemeIds.has(m.id))
-              : memes}
+            memes={memes}
             selectable
             selectedIds={selectedMemeIds}
             onSelectionChange={setSelectedMemeIds}
