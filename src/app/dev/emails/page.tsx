@@ -3,8 +3,8 @@ import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
-export default function DevEmailsPage() {
-  const emails = db.getEmails();
+export default async function DevEmailsPage() {
+  const emails = await db.getEmails();
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 p-6">
