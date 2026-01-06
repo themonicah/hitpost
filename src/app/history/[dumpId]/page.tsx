@@ -4,6 +4,7 @@ import Nav from "@/components/Nav";
 import db, { Reaction } from "@/lib/db";
 import Link from "next/link";
 import CopyLinkButton from "./CopyLinkButton";
+import { headers } from "next/headers";
 
 export const dynamic = "force-dynamic";
 
@@ -47,7 +48,12 @@ export default async function DumpDetailPage({ params }: DumpDetailPageProps) {
 
   const viewedCount = recipients.filter((r) => r.viewed_at).length;
   const totalViews = recipients.reduce((sum, r) => sum + (r.view_count || 0), 0);
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+
+  // Get base URL from request headers (more reliable than env vars)
+  const headersList = await headers();
+  const host = headersList.get("host") || "localhost:3000";
+  const protocol = headersList.get("x-forwarded-proto") || "https";
+  const baseUrl = `${protocol}://${host}`;
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
