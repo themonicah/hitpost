@@ -134,12 +134,16 @@ export const db = {
 
   async getMemesByIds(ids: string[]): Promise<Meme[]> {
     if (ids.length === 0) return [];
-    const { rows } = await sql<Meme>`
-      SELECT id, user_id, file_url, file_type, created_at::text
-      FROM memes
-      WHERE id = ANY(${ids}::uuid[])
-    `;
-    return rows;
+    const results: Meme[] = [];
+    for (const id of ids) {
+      const { rows } = await sql<Meme>`
+        SELECT id, user_id, file_url, file_type, created_at::text
+        FROM memes
+        WHERE id = ${id}::uuid
+      `;
+      if (rows[0]) results.push(rows[0]);
+    }
+    return results;
   },
 
   async createMeme(meme: { id: string; user_id: string; file_url: string; file_type: string }): Promise<void> {
@@ -267,12 +271,16 @@ export const db = {
 
   async getReactionsByRecipients(recipientIds: string[]): Promise<Reaction[]> {
     if (recipientIds.length === 0) return [];
-    const { rows } = await sql<Reaction>`
-      SELECT id, recipient_id, meme_id, emoji, created_at::text
-      FROM reactions
-      WHERE recipient_id = ANY(${recipientIds}::uuid[])
-    `;
-    return rows;
+    const results: Reaction[] = [];
+    for (const recipientId of recipientIds) {
+      const { rows } = await sql<Reaction>`
+        SELECT id, recipient_id, meme_id, emoji, created_at::text
+        FROM reactions
+        WHERE recipient_id = ${recipientId}::uuid
+      `;
+      results.push(...rows);
+    }
+    return results;
   },
 
   async upsertReaction(recipientId: string, memeId: string, emoji: string | null): Promise<void> {
@@ -365,12 +373,16 @@ export const db = {
 
   async getMembersByGroups(groupIds: string[]): Promise<GroupMember[]> {
     if (groupIds.length === 0) return [];
-    const { rows } = await sql<GroupMember>`
-      SELECT id, group_id, name, email, created_at::text
-      FROM group_members
-      WHERE group_id = ANY(${groupIds}::uuid[])
-    `;
-    return rows;
+    const results: GroupMember[] = [];
+    for (const groupId of groupIds) {
+      const { rows } = await sql<GroupMember>`
+        SELECT id, group_id, name, email, created_at::text
+        FROM group_members
+        WHERE group_id = ${groupId}::uuid
+      `;
+      results.push(...rows);
+    }
+    return results;
   },
 
   async addMember(member: { id: string; group_id: string; name: string; email: string }): Promise<void> {
