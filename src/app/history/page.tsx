@@ -11,16 +11,18 @@ export default async function HistoryPage() {
     redirect("/");
   }
 
-  const rawDumps = db.getDumpsByUser(user.id);
-  const dumps = rawDumps.map((dump) => {
-    const stats = db.getDumpStats(dump.id);
-    return {
-      ...dump,
-      meme_count: stats.memeCount,
-      recipient_count: stats.recipientCount,
-      viewed_count: stats.viewedCount,
-    };
-  });
+  const rawDumps = await db.getDumpsByUser(user.id);
+  const dumps = await Promise.all(
+    rawDumps.map(async (dump) => {
+      const stats = await db.getDumpStats(dump.id);
+      return {
+        ...dump,
+        meme_count: stats.memeCount,
+        recipient_count: stats.recipientCount,
+        viewed_count: stats.viewedCount,
+      };
+    })
+  );
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">

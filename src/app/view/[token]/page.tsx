@@ -10,7 +10,7 @@ export default async function ViewPage({ params }: ViewPageProps) {
   const { token } = await params;
 
   // Get recipient by token
-  const recipient = db.getRecipientByToken(token);
+  const recipient = await db.getRecipientByToken(token);
 
   if (!recipient) {
     notFound();
@@ -18,25 +18,25 @@ export default async function ViewPage({ params }: ViewPageProps) {
 
   // Mark as viewed
   if (!recipient.viewed_at) {
-    db.markRecipientViewed(recipient.id);
+    await db.markRecipientViewed(recipient.id);
   }
 
   // Get dump
-  const dump = db.getDumpById(recipient.dump_id);
+  const dump = await db.getDumpById(recipient.dump_id);
 
   if (!dump) {
     notFound();
   }
 
   // Get sender info
-  const sender = db.getUserById(dump.sender_id);
+  const sender = await db.getUserById(dump.sender_id);
   const senderEmail = sender?.email || "Unknown";
 
   // Get memes in order
-  const memes = db.getMemesByDump(dump.id);
+  const memes = await db.getMemesByDump(dump.id);
 
   // Get existing reactions
-  const reactions = db.getReactionsByRecipient(recipient.id);
+  const reactions = await db.getReactionsByRecipient(recipient.id);
   const reactionsMap: Record<string, string> = {};
   reactions.forEach((r) => {
     reactionsMap[r.meme_id] = r.emoji;

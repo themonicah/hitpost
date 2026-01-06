@@ -19,22 +19,22 @@ export default async function DumpDetailPage({ params }: DumpDetailPageProps) {
   const { dumpId } = await params;
 
   // Get dump
-  const dump = db.getDumpById(dumpId);
+  const dump = await db.getDumpById(dumpId);
 
   if (!dump || dump.sender_id !== user.id) {
     notFound();
   }
 
   // Get memes
-  const memes = db.getMemesByDump(dumpId);
+  const memes = await db.getMemesByDump(dumpId);
 
   // Get recipients
-  const recipients = db.getRecipientsByDump(dumpId);
+  const recipients = await db.getRecipientsByDump(dumpId);
   const recipientIds = recipients.map((r) => r.id);
 
   // Get reactions
   const reactions: Reaction[] = recipientIds.length > 0
-    ? db.getReactionsByRecipients(recipientIds)
+    ? await db.getReactionsByRecipients(recipientIds)
     : [];
 
   // Group reactions by recipient
