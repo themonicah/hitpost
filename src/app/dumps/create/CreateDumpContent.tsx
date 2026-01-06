@@ -83,7 +83,7 @@ export default function CreateDumpContent({ userId }: CreateDumpContentProps) {
     fetchData();
   }, [fetchData]);
 
-  // Handle pre-selected memes from URL
+  // Handle pre-selected memes from URL - skip to recipients step if coming from draft
   useEffect(() => {
     const memesParam = searchParams.get("memes");
     const fromParam = searchParams.get("from");
@@ -92,6 +92,11 @@ export default function CreateDumpContent({ userId }: CreateDumpContentProps) {
     if (memesParam) {
       const ids = memesParam.split(",").filter(Boolean);
       setSelectedMemeIds(new Set(ids));
+
+      // Skip directly to recipients step when coming from a draft with memes
+      if (ids.length > 0 && fromParam === "collection") {
+        setStep("recipients");
+      }
     }
     if (fromParam === "collection" && collectionIdParam) {
       setMemeSource("collection");
@@ -233,16 +238,53 @@ export default function CreateDumpContent({ userId }: CreateDumpContentProps) {
 
   const selectedMemes = getSelectedMemes();
   const uniqueRecipients = getUniqueRecipients();
+  const isFromDraft = searchParams.get("from") === "collection";
+
+  // Define steps based on whether we're coming from a draft
+  const steps: Step[] = isFromDraft ? ["recipients", "review"] : ["memes", "recipients", "review"];
+  const stepLabels = isFromDraft
+    ? ["Recipients", "Send"]
+    : ["Memes", "Recipients", "Send"];
 
   return (
     <div className="space-y-4">
-      {/* Progress indicator */}
+      {/* Show draft context when coming from a draft */}
+      {isFromDraft && selectedMemes.length > 0 && (
+        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-3">
+          <div className="flex items-center gap-3">
+            <div className="flex -space-x-2">
+              {selectedMemes.slice(0, 3).map((meme) => (
+                <div key={meme.id} className="w-10 h-10 rounded-lg overflow-hidden border-2 border-white dark:border-gray-900">
+                  {meme.file_type === "video" ? (
+                    <video src={meme.file_url} className="w-full h-full object-cover" muted />
+                  ) : (
+                    <img src={meme.file_url} alt="" className="w-full h-full object-cover" />
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                {selectedMemes.length} meme{selectedMemes.length !== 1 ? "s" : ""} ready to send
+              </p>
+              <button
+                onClick={() => router.back()}
+                className="text-xs text-blue-500 hover:text-blue-600"
+              >
+                Edit selection
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Progress indicator - simplified for draft flow */}
       <div className="flex items-center justify-center gap-2 py-2">
-        {(["memes", "recipients", "review"] as Step[]).map((s, i) => (
+        {steps.map((s, i) => (
           <div key={s} className="flex items-center">
             <button
               onClick={() => {
-                if (s === "memes") setStep("memes");
+                if (s === "memes" && !isFromDraft) setStep("memes");
                 else if (s === "recipients" && selectedMemeIds.size > 0) setStep("recipients");
                 else if (s === "review" && selectedMemeIds.size > 0 && uniqueRecipients.length > 0) setStep("review");
               }}
@@ -254,9 +296,9 @@ export default function CreateDumpContent({ userId }: CreateDumpContentProps) {
             >
               {i + 1}
             </button>
-            {i < 2 && (
+            {i < steps.length - 1 && (
               <div className={`w-8 h-0.5 mx-1 transition-colors ${
-                (i === 0 && step !== "memes") || (i === 1 && step === "review")
+                (isFromDraft ? step === "review" : (i === 0 && step !== "memes") || (i === 1 && step === "review"))
                   ? "bg-blue-500"
                   : "bg-gray-200 dark:bg-gray-700"
               }`} />
@@ -266,10 +308,12 @@ export default function CreateDumpContent({ userId }: CreateDumpContentProps) {
       </div>
 
       {/* Step labels */}
-      <div className="flex justify-between text-xs text-gray-500 px-4">
-        <span className={step === "memes" ? "text-blue-500 font-medium" : ""}>Memes</span>
-        <span className={step === "recipients" ? "text-blue-500 font-medium" : ""}>Recipients</span>
-        <span className={step === "review" ? "text-blue-500 font-medium" : ""}>Review</span>
+      <div className={`flex justify-between text-xs text-gray-500 px-4 ${isFromDraft ? "max-w-xs mx-auto" : ""}`}>
+        {steps.map((s, i) => (
+          <span key={s} className={step === s ? "text-blue-500 font-medium" : ""}>
+            {stepLabels[i]}
+          </span>
+        ))}
       </div>
 
       {/* Step 1: Select Memes */}
@@ -404,10 +448,10 @@ export default function CreateDumpContent({ userId }: CreateDumpContentProps) {
           <div className="sticky bottom-20 pt-4 bg-gradient-to-t from-gray-50 dark:from-gray-950">
             <div className="flex gap-3">
               <button
-                onClick={() => setStep("memes")}
+                onClick={() => isFromDraft ? router.back() : setStep("memes")}
                 className="flex-1 py-4 bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-semibold rounded-2xl"
               >
-                Back
+                {isFromDraft ? "Edit Draft" : "Back"}
               </button>
               <button
                 onClick={() => setStep("review")}
@@ -428,7 +472,10 @@ export default function CreateDumpContent({ userId }: CreateDumpContentProps) {
           <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow-sm">
             <div className="flex items-center justify-between mb-3">
               <h2 className="font-semibold">{selectedMemes.length} memes</h2>
-              <button onClick={() => setStep("memes")} className="text-blue-500 text-sm font-medium">
+              <button
+                onClick={() => isFromDraft ? router.back() : setStep("memes")}
+                className="text-blue-500 text-sm font-medium"
+              >
                 Edit
               </button>
             </div>

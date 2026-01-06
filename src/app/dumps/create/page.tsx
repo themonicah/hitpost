@@ -13,7 +13,7 @@ export default async function CreateDumpPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-20">
-      <Header email={user.email} title="New Dump" showBack />
+      <Header email={user.email} title="Send Dump" showBack />
       <main className="max-w-4xl mx-auto px-4 py-4">
         <CreateDumpContent userId={user.id} />
       </main>
