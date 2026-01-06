@@ -87,6 +87,14 @@ export interface CollectionMeme {
   added_at: string;
 }
 
+export interface PushToken {
+  id: string;
+  user_id: string;
+  token: string;
+  platform: "ios" | "android" | "web";
+  created_at: string;
+}
+
 // Database operations
 export const db = {
   // Users
@@ -479,6 +487,38 @@ export const db = {
       });
     }
     return result;
+  },
+
+  // Push Tokens
+  async savePushToken(userId: string, token: string, platform: "ios" | "android" | "web"): Promise<void> {
+    await sql`
+      INSERT INTO push_tokens (user_id, token, platform)
+      VALUES (${userId}, ${token}, ${platform})
+      ON CONFLICT (token) DO UPDATE SET user_id = ${userId}, platform = ${platform}
+    `;
+  },
+
+  async deletePushToken(token: string): Promise<void> {
+    await sql`DELETE FROM push_tokens WHERE token = ${token}`;
+  },
+
+  async getPushTokensByUser(userId: string): Promise<PushToken[]> {
+    const { rows } = await sql<PushToken>`
+      SELECT id, user_id, token, platform, created_at::text
+      FROM push_tokens
+      WHERE user_id = ${userId}
+    `;
+    return rows;
+  },
+
+  async getPushTokensByEmail(email: string): Promise<PushToken[]> {
+    const { rows } = await sql<PushToken>`
+      SELECT pt.id, pt.user_id, pt.token, pt.platform, pt.created_at::text
+      FROM push_tokens pt
+      JOIN users u ON pt.user_id = u.id
+      WHERE u.email = ${email}
+    `;
+    return rows;
   },
 };
 

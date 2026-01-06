@@ -1,5 +1,6 @@
 import { getSession } from "@/lib/auth";
 import db from "@/lib/db";
+import { sendDumpNotification } from "@/lib/push";
 import { NextRequest, NextResponse } from "next/server";
 import { v4 as uuid } from "uuid";
 
@@ -52,8 +53,9 @@ export async function POST(req: NextRequest) {
     }));
     await db.addMemesToDump(dumpMemes);
 
-    // Create recipients and "send" emails
+    // Create recipients and "send" emails + push notifications
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+    const recipientLinks: { email: string; link: string }[] = [];
 
     for (const email of recipients) {
       const recipientId = uuid();
@@ -79,6 +81,8 @@ export async function POST(req: NextRequest) {
         link,
       });
 
+      recipientLinks.push({ email, link });
+
       console.log("\n=== EMAIL SENT ===");
       console.log(`To: ${email}`);
       console.log(`Subject: ${subject}`);
@@ -86,7 +90,32 @@ export async function POST(req: NextRequest) {
       console.log("==================\n");
     }
 
-    return NextResponse.json({ dumpId, success: true });
+    // Send push notifications to recipients who have the app
+    let pushSent = 0;
+    for (const { email, link } of recipientLinks) {
+      try {
+        const tokens = await db.getPushTokensByEmail(email);
+        if (tokens.length > 0) {
+          const result = await sendDumpNotification(
+            tokens.map((t) => t.token),
+            user.email,
+            link
+          );
+          pushSent += result.successCount;
+
+          // Clean up invalid tokens
+          for (const failedToken of result.failedTokens) {
+            await db.deletePushToken(failedToken);
+          }
+        }
+      } catch (error) {
+        console.error(`Failed to send push to ${email}:`, error);
+      }
+    }
+
+    console.log(`Push notifications sent: ${pushSent}`);
+
+    return NextResponse.json({ dumpId, success: true, pushSent });
   } catch (error) {
     console.error("Create dump error:", error);
     return NextResponse.json({ error: "Failed to create dump" }, { status: 500 });
