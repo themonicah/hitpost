@@ -10,7 +10,7 @@ export async function getSession(): Promise<User | null> {
 
   if (!sessionId) return null;
 
-  const user = db.getUserById(sessionId);
+  const user = await db.getUserById(sessionId);
   return user || null;
 }
 
@@ -18,16 +18,17 @@ export async function createSession(email: string): Promise<User> {
   const cookieStore = await cookies();
 
   // Check if user exists
-  let user = db.getUserByEmail(email);
+  let user = await db.getUserByEmail(email);
 
   if (!user) {
     // Create new user
-    user = {
+    const newUser = {
       id: uuid(),
       email,
       created_at: new Date().toISOString(),
     };
-    db.createUser(user);
+    await db.createUser(newUser);
+    user = newUser;
   }
 
   // Set session cookie
