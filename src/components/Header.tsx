@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 interface HeaderProps {
@@ -15,9 +16,9 @@ export default function Header({
   showBack,
   rightAction,
 }: HeaderProps) {
-  // Rename labels for consistency
   const displayTitle = title === "Groups" ? "Circles" : title;
   const router = useRouter();
+  const [showMenu, setShowMenu] = useState(false);
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -29,7 +30,8 @@ export default function Header({
     <header className="sticky top-0 z-40 bg-white/95 dark:bg-gray-950/95 backdrop-blur-lg border-b border-gray-100 dark:border-gray-800">
       <div className="max-w-4xl mx-auto px-4">
         <div className="flex items-center justify-between h-14">
-          <div className="flex items-center gap-3">
+          {/* Left side - back button or spacer */}
+          <div className="w-20 flex items-center">
             {showBack && (
               <button
                 onClick={() => router.back()}
@@ -40,19 +42,44 @@ export default function Header({
                 </svg>
               </button>
             )}
-            <h1 className="font-bold text-xl">{displayTitle || "HitPost"}</h1>
           </div>
 
-          <div className="flex items-center gap-3">
+          {/* Center - title */}
+          <h1 className="font-semibold text-lg">{displayTitle || "HitPost"}</h1>
+
+          {/* Right side - actions + account */}
+          <div className="w-20 flex items-center justify-end gap-2">
             {rightAction}
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-500 hidden sm:block">{email}</span>
+            <div className="relative">
               <button
-                onClick={handleLogout}
-                className="text-sm text-red-500 hover:text-red-600 font-medium"
+                onClick={() => setShowMenu(!showMenu)}
+                className="w-8 h-8 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
               >
-                Sign out
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
               </button>
+
+              {/* Dropdown menu */}
+              {showMenu && (
+                <>
+                  <div
+                    className="fixed inset-0 z-10"
+                    onClick={() => setShowMenu(false)}
+                  />
+                  <div className="absolute right-0 top-10 z-20 w-48 bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-100 dark:border-gray-800 py-2">
+                    <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-800">
+                      <p className="text-sm font-medium truncate">{email}</p>
+                    </div>
+                    <button
+                      onClick={handleLogout}
+                      className="w-full px-4 py-2 text-left text-sm text-red-500 hover:bg-gray-50 dark:hover:bg-gray-800"
+                    >
+                      Sign out
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
