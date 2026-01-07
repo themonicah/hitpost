@@ -4,7 +4,8 @@ import { useEffect, useState, useCallback } from "react";
 import { Meme } from "@/lib/db";
 import MemeGrid from "@/components/MemeGrid";
 import MemeUploader from "@/components/MemeUploader";
-import Link from "next/link";
+import SendDumpModal from "@/components/SendDumpModal";
+import MemeViewer from "@/components/MemeViewer";
 
 interface HomeContentProps {
   userId: string;
@@ -15,6 +16,8 @@ export default function HomeContent({ userId }: HomeContentProps) {
   const [loading, setLoading] = useState(true);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showSendModal, setShowSendModal] = useState(false);
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
 
   const fetchMemes = useCallback(async () => {
     try {
@@ -61,12 +64,12 @@ export default function HomeContent({ userId }: HomeContentProps) {
         </p>
         <div className="flex items-center gap-2">
           {selectMode && selectedIds.size > 0 && (
-            <Link
-              href={`/dumps/create?memes=${Array.from(selectedIds).join(",")}`}
+            <button
+              onClick={() => setShowSendModal(true)}
               className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-full text-sm font-medium"
             >
-              Create Dump ({selectedIds.size})
-            </Link>
+              Send ({selectedIds.size})
+            </button>
           )}
           <button
             onClick={toggleSelectMode}
@@ -103,8 +106,35 @@ export default function HomeContent({ userId }: HomeContentProps) {
           selectedIds={selectedIds}
           onSelectionChange={setSelectedIds}
           onDelete={selectMode ? undefined : handleDelete}
+          onMemeClick={selectMode ? undefined : (index) => setViewerIndex(index)}
         />
       )}
+
+      {/* Meme Viewer */}
+      {viewerIndex !== null && (
+        <MemeViewer
+          memes={memes}
+          initialIndex={viewerIndex}
+          onClose={() => setViewerIndex(null)}
+          selectable={true}
+          selectedIds={selectedIds}
+          onSelectionChange={(ids) => {
+            setSelectedIds(ids);
+            if (ids.size > 0) setSelectMode(true);
+          }}
+        />
+      )}
+
+      {/* Send Modal */}
+      <SendDumpModal
+        isOpen={showSendModal}
+        onClose={() => setShowSendModal(false)}
+        selectedMemes={memes.filter((m) => selectedIds.has(m.id))}
+        onSent={() => {
+          setSelectMode(false);
+          setSelectedIds(new Set());
+        }}
+      />
     </div>
   );
 }

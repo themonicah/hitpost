@@ -9,6 +9,7 @@ interface MemeGridProps {
   selectedIds?: Set<string>;
   onSelectionChange?: (ids: Set<string>) => void;
   onDelete?: (id: string) => void;
+  onMemeClick?: (index: number) => void;
   maxSelections?: number;
 }
 
@@ -18,6 +19,7 @@ export default function MemeGrid({
   selectedIds = new Set(),
   onSelectionChange,
   onDelete,
+  onMemeClick,
   maxSelections = 50,
 }: MemeGridProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -59,19 +61,25 @@ export default function MemeGrid({
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-      {memes.map((meme) => {
+      {memes.map((meme, index) => {
         const isSelected = selectedIds.has(meme.id);
         const isDeleting = deletingId === meme.id;
 
         return (
           <div
             key={meme.id}
-            className={`relative aspect-square rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800 ${
-              selectable ? "cursor-pointer" : ""
-            } ${isSelected ? "ring-4 ring-blue-500" : ""} ${
+            className={`relative aspect-square rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800 transition-all duration-200 ${
+              selectable || onMemeClick ? "cursor-pointer active:scale-95" : ""
+            } ${isSelected ? "ring-4 ring-blue-500 scale-[0.96]" : "hover:scale-[1.02]"} ${
               isDeleting ? "opacity-50" : ""
             }`}
-            onClick={() => selectable && toggleSelection(meme.id)}
+            onClick={() => {
+              if (selectable) {
+                toggleSelection(meme.id);
+              } else if (onMemeClick) {
+                onMemeClick(index);
+              }
+            }}
           >
             {meme.file_type === "video" ? (
               <video
@@ -91,7 +99,7 @@ export default function MemeGrid({
             )}
 
             {selectable && isSelected && (
-              <div className="absolute top-2 right-2 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-bold">
+              <div className="absolute top-2 right-2 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-bold animate-popIn">
                 {Array.from(selectedIds).indexOf(meme.id) + 1}
               </div>
             )}

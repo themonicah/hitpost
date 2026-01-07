@@ -95,6 +95,21 @@ export interface PushToken {
   created_at: string;
 }
 
+export interface ActivityItem {
+  id: string;
+  type: "view" | "reaction" | "note" | "sent";
+  timestamp: string;
+  recipientEmail: string;
+  dumpId: string;
+  dumpNote: string | null;
+  firstMemeUrl: string;
+  emoji?: string;
+  memeUrl?: string;
+  noteText?: string;
+  memeCount?: number;
+  recipientCount?: number;
+}
+
 // Database operations
 export const db = {
   // Users
@@ -531,6 +546,132 @@ export const db = {
       WHERE u.email = ${email}
     `;
     return rows;
+  },
+
+  // Activity Feed
+  async getActivityFeed(userId: string, limit: number = 50): Promise<ActivityItem[]> {
+    // Get all activity in one query using UNION ALL
+    const { rows } = await sql<{
+      id: string;
+      type: string;
+      timestamp: string;
+      recipient_email: string;
+      dump_id: string;
+      dump_note: string | null;
+      first_meme_url: string;
+      emoji: string | null;
+      meme_url: string | null;
+      note_text: string | null;
+      meme_count: string | null;
+      recipient_count: string | null;
+    }>`
+      WITH user_dumps AS (
+        SELECT d.id, d.note, d.created_at, (
+          SELECT m.file_url FROM dump_memes dm
+          JOIN memes m ON m.id = dm.meme_id
+          WHERE dm.dump_id = d.id
+          ORDER BY dm.sort_order LIMIT 1
+        ) as first_meme_url,
+        (SELECT COUNT(*) FROM dump_memes WHERE dump_id = d.id) as meme_count,
+        (SELECT COUNT(*) FROM dump_recipients WHERE dump_id = d.id) as recipient_count
+        FROM dumps d
+        WHERE d.sender_id = ${userId}
+      )
+      -- Sent (dump created)
+      SELECT
+        ud.id::text || '-sent' as id,
+        'sent' as type,
+        ud.created_at::text as timestamp,
+        '' as recipient_email,
+        ud.id::text as dump_id,
+        ud.note as dump_note,
+        ud.first_meme_url,
+        NULL as emoji,
+        NULL as meme_url,
+        NULL as note_text,
+        ud.meme_count::text as meme_count,
+        ud.recipient_count::text as recipient_count
+      FROM user_dumps ud
+
+      UNION ALL
+
+      -- Views
+      SELECT
+        dr.id::text as id,
+        'view' as type,
+        dr.viewed_at::text as timestamp,
+        dr.email as recipient_email,
+        ud.id::text as dump_id,
+        ud.note as dump_note,
+        ud.first_meme_url,
+        NULL as emoji,
+        NULL as meme_url,
+        NULL as note_text,
+        NULL as meme_count,
+        NULL as recipient_count
+      FROM dump_recipients dr
+      JOIN user_dumps ud ON dr.dump_id = ud.id
+      WHERE dr.viewed_at IS NOT NULL
+
+      UNION ALL
+
+      -- Reactions
+      SELECT
+        r.id::text as id,
+        'reaction' as type,
+        r.created_at::text as timestamp,
+        dr.email as recipient_email,
+        ud.id::text as dump_id,
+        ud.note as dump_note,
+        ud.first_meme_url,
+        r.emoji,
+        m.file_url as meme_url,
+        NULL as note_text,
+        NULL as meme_count,
+        NULL as recipient_count
+      FROM reactions r
+      JOIN dump_recipients dr ON r.recipient_id = dr.id
+      JOIN user_dumps ud ON dr.dump_id = ud.id
+      JOIN memes m ON r.meme_id = m.id
+
+      UNION ALL
+
+      -- Notes
+      SELECT
+        dr.id::text || '-note' as id,
+        'note' as type,
+        dr.viewed_at::text as timestamp,
+        dr.email as recipient_email,
+        ud.id::text as dump_id,
+        ud.note as dump_note,
+        ud.first_meme_url,
+        NULL as emoji,
+        NULL as meme_url,
+        dr.recipient_note as note_text,
+        NULL as meme_count,
+        NULL as recipient_count
+      FROM dump_recipients dr
+      JOIN user_dumps ud ON dr.dump_id = ud.id
+      WHERE dr.recipient_note IS NOT NULL AND dr.recipient_note != ''
+
+      ORDER BY timestamp DESC NULLS LAST
+      LIMIT ${limit}
+    `;
+
+    return rows.map((row) => ({
+      id: row.id,
+      type: row.type as "view" | "reaction" | "note" | "sent",
+      timestamp: row.timestamp,
+      recipientEmail: row.recipient_email,
+      dumpId: row.dump_id,
+      dumpNote: row.dump_note,
+      firstMemeUrl: row.first_meme_url,
+      emoji: row.emoji || undefined,
+      memeUrl: row.meme_url || undefined,
+      noteText: row.note_text || undefined,
+      memeCount: row.meme_count ? parseInt(row.meme_count) : undefined,
+      recipientCount: row.recipient_count ? parseInt(row.recipient_count) : undefined,
+    }));
   },
 };
 

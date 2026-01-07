@@ -3,7 +3,6 @@ import db from "@/lib/db";
 import { sendDumpNotification } from "@/lib/push";
 import { NextRequest, NextResponse } from "next/server";
 import { v4 as uuid } from "uuid";
-import { headers } from "next/headers";
 
 export async function POST(req: NextRequest) {
   const user = await getSession();
@@ -55,11 +54,9 @@ export async function POST(req: NextRequest) {
     await db.addMemesToDump(dumpMemes);
 
     // Create recipients and "send" emails + push notifications
-    // Get base URL from request headers (more reliable than env vars)
-    const headersList = await headers();
-    const host = headersList.get("host") || "localhost:3000";
-    const protocol = headersList.get("x-forwarded-proto") || "https";
-    const baseUrl = `${protocol}://${host}`;
+    // Get base URL from the incoming request
+    const requestUrl = new URL(req.url);
+    const baseUrl = `${requestUrl.protocol}//${requestUrl.host}`;
     const recipientLinks: { email: string; link: string }[] = [];
 
     for (const email of recipients) {

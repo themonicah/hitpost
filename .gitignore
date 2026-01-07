@@ -46,3 +46,4 @@ next-env.d.ts
 # uploads (keep folder, ignore contents)
 /public/uploads/*
 !/public/uploads/.gitkeep
+.env*.local

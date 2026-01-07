@@ -44,7 +44,7 @@ export default async function DumpDetailPage({ params }: DumpDetailPageProps) {
 
   // Get base URL from request headers
   const headersList = await headers();
-  const host = headersList.get("host") || "localhost:3000";
+  const host = headersList.get("host") || headersList.get("x-forwarded-host") || "localhost:3000";
   const protocol = headersList.get("x-forwarded-proto") || "https";
   const baseUrl = `${protocol}://${host}`;
 

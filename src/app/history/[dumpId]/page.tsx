@@ -49,9 +49,9 @@ export default async function DumpDetailPage({ params }: DumpDetailPageProps) {
   const viewedCount = recipients.filter((r) => r.viewed_at).length;
   const totalViews = recipients.reduce((sum, r) => sum + (r.view_count || 0), 0);
 
-  // Get base URL from request headers (more reliable than env vars)
+  // Get base URL from request headers
   const headersList = await headers();
-  const host = headersList.get("host") || "localhost:3000";
+  const host = headersList.get("host") || headersList.get("x-forwarded-host") || "localhost:3000";
   const protocol = headersList.get("x-forwarded-proto") || "https";
   const baseUrl = `${protocol}://${host}`;
 
