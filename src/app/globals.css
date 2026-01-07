@@ -142,6 +142,89 @@ html {
   animation: pulse-subtle 2s ease-in-out infinite;
 }
 
+/* Easter egg animations */
+@keyframes wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-2deg); }
+  75% { transform: rotate(2deg); }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-4px); }
+  40%, 80% { transform: translateX(4px); }
+}
+
+@keyframes heartBeat {
+  0% { transform: scale(1); }
+  15% { transform: scale(1.3); }
+  30% { transform: scale(1); }
+  45% { transform: scale(1.15); }
+  60% { transform: scale(1); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); animation-timing-function: cubic-bezier(0.8, 0, 1, 1); }
+  50% { transform: translateY(-12px); animation-timing-function: cubic-bezier(0, 0, 0.2, 1); }
+}
+
+@keyframes tada {
+  0% { transform: scale(1) rotate(0deg); }
+  10%, 20% { transform: scale(0.9) rotate(-3deg); }
+  30%, 50%, 70%, 90% { transform: scale(1.1) rotate(3deg); }
+  40%, 60%, 80% { transform: scale(1.1) rotate(-3deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+@keyframes jello {
+  0%, 100% { transform: scale3d(1, 1, 1); }
+  30% { transform: scale3d(1.25, 0.75, 1); }
+  40% { transform: scale3d(0.75, 1.25, 1); }
+  50% { transform: scale3d(1.15, 0.85, 1); }
+  65% { transform: scale3d(0.95, 1.05, 1); }
+  75% { transform: scale3d(1.05, 0.95, 1); }
+}
+
+@keyframes rubberBand {
+  0% { transform: scale3d(1, 1, 1); }
+  30% { transform: scale3d(1.25, 0.75, 1); }
+  40% { transform: scale3d(0.75, 1.25, 1); }
+  50% { transform: scale3d(1.15, 0.85, 1); }
+  65% { transform: scale3d(0.95, 1.05, 1); }
+  75% { transform: scale3d(1.05, 0.95, 1); }
+  100% { transform: scale3d(1, 1, 1); }
+}
+
+@keyframes confettiFall {
+  0% { transform: translateY(-10px) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+}
+
+@keyframes emojiFloat {
+  0% { transform: translateY(0) scale(1); opacity: 1; }
+  100% { transform: translateY(-80px) scale(1.5); opacity: 0; }
+}
+
+@keyframes rainbow {
+  0% { filter: hue-rotate(0deg); }
+  100% { filter: hue-rotate(360deg); }
+}
+
+.animate-wiggle { animation: wiggle 0.3s ease-in-out; }
+.animate-shake { animation: shake 0.4s ease-in-out; }
+.animate-heartBeat { animation: heartBeat 0.6s ease-in-out; }
+.animate-float { animation: float 2s ease-in-out infinite; }
+.animate-bounce { animation: bounce 0.5s ease-in-out; }
+.animate-tada { animation: tada 0.8s ease-in-out; }
+.animate-jello { animation: jello 0.8s ease-in-out; }
+.animate-rubberBand { animation: rubberBand 0.8s ease-in-out; }
+.animate-rainbow { animation: rainbow 2s linear infinite; }
+
 /* Staggered animations for lists */
 .stagger-1 { animation-delay: 0.05s; }
 .stagger-2 { animation-delay: 0.1s; }
@@ -157,4 +240,18 @@ html {
 /* Transition utilities */
 .transition-transform-fast {
   transition: transform 0.15s ease-out;
+}
+
+/* Confetti particle */
+.confetti-particle {
+  position: fixed;
+  pointer-events: none;
+  animation: confettiFall 2s ease-out forwards;
+}
+
+/* Floating emoji */
+.emoji-float {
+  position: absolute;
+  pointer-events: none;
+  animation: emojiFloat 1s ease-out forwards;
 }

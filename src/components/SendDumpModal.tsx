@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Meme } from "@/lib/db";
 import { useRouter } from "next/navigation";
+import Confetti from "./Confetti";
 
 interface Group {
   id: string;
@@ -35,6 +36,7 @@ export default function SendDumpModal({
   const [newGroupName, setNewGroupName] = useState("");
   const [newGroupEmails, setNewGroupEmails] = useState("");
   const [creatingGroup, setCreatingGroup] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
 
   // Fetch groups when modal opens
   useEffect(() => {
@@ -186,9 +188,13 @@ export default function SendDumpModal({
       }
 
       const data = await res.json();
-      onSent?.();
-      onClose();
-      router.push(`/dumps/${data.dumpId}`);
+      setShowConfetti(true);
+      setTimeout(() => {
+        onSent?.();
+        onClose();
+        setShowConfetti(false);
+        router.push(`/dumps/${data.dumpId}`);
+      }, 1000);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to send");
     } finally {
@@ -201,10 +207,12 @@ export default function SendDumpModal({
   const recipientCount = getUniqueRecipients().length;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center animate-fadeIn">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+    <>
+      <Confetti active={showConfetti} />
+      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center animate-fadeIn">
+        {/* Backdrop */}
+        <div
+          className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
       />
 
@@ -396,6 +404,7 @@ export default function SendDumpModal({
           )}
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

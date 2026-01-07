@@ -1,7 +1,7 @@
 "use client";
 
 import { Meme } from "@/lib/db";
-import { useState } from "react";
+import { useState, useRef } from "react";
 
 interface MemeGridProps {
   memes: Meme[];
@@ -23,6 +23,21 @@ export default function MemeGrid({
   maxSelections = 50,
 }: MemeGridProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [heartId, setHeartId] = useState<string | null>(null);
+  const [shakeId, setShakeId] = useState<string | null>(null);
+  const lastTapRef = useRef<{ id: string; time: number } | null>(null);
+
+  function handleDoubleTap(id: string) {
+    const now = Date.now();
+    if (lastTapRef.current && lastTapRef.current.id === id && now - lastTapRef.current.time < 300) {
+      // Double tap detected - show heart animation
+      setHeartId(id);
+      setTimeout(() => setHeartId(null), 600);
+      lastTapRef.current = null;
+    } else {
+      lastTapRef.current = { id, time: now };
+    }
+  }
 
   function toggleSelection(id: string) {
     if (!onSelectionChange) return;
@@ -32,6 +47,11 @@ export default function MemeGrid({
       newSelected.delete(id);
     } else if (newSelected.size < maxSelections) {
       newSelected.add(id);
+    } else {
+      // At limit - shake animation
+      setShakeId(id);
+      setTimeout(() => setShakeId(null), 400);
+      return;
     }
     onSelectionChange(newSelected);
   }
@@ -65,6 +85,9 @@ export default function MemeGrid({
         const isSelected = selectedIds.has(meme.id);
         const isDeleting = deletingId === meme.id;
 
+        const isShaking = shakeId === meme.id;
+        const showHeart = heartId === meme.id;
+
         return (
           <div
             key={meme.id}
@@ -72,8 +95,9 @@ export default function MemeGrid({
               selectable || onMemeClick ? "cursor-pointer active:scale-95" : ""
             } ${isSelected ? "ring-4 ring-blue-500 scale-[0.96]" : "hover:scale-[1.02]"} ${
               isDeleting ? "opacity-50" : ""
-            }`}
+            } ${isShaking ? "animate-shake" : ""}`}
             onClick={() => {
+              handleDoubleTap(meme.id);
               if (selectable) {
                 toggleSelection(meme.id);
               } else if (onMemeClick) {
@@ -96,6 +120,13 @@ export default function MemeGrid({
                 className="w-full h-full object-cover"
                 loading="lazy"
               />
+            )}
+
+            {/* Double-tap heart animation */}
+            {showHeart && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <span className="text-6xl animate-heartBeat drop-shadow-lg">❤️</span>
+              </div>
             )}
 
             {selectable && isSelected && (
