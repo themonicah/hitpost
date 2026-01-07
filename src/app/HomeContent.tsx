@@ -6,6 +6,7 @@ import MemeGrid from "@/components/MemeGrid";
 import MemeUploader from "@/components/MemeUploader";
 import SendDumpModal from "@/components/SendDumpModal";
 import MemeViewer from "@/components/MemeViewer";
+import EmptyState from "@/components/EmptyState";
 
 interface HomeContentProps {
   userId: string;
@@ -86,19 +87,11 @@ export default function HomeContent({ userId }: HomeContentProps) {
 
       {/* Empty state */}
       {memes.length === 0 ? (
-        <div className="text-center py-16">
-          <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
-            <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-          </div>
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-1">
-            No memes yet
-          </h3>
-          <p className="text-gray-500 text-sm">
-            Upload some memes to get started
-          </p>
-        </div>
+        <EmptyState
+          type="memes"
+          title="No memes yet"
+          description="Upload your favorite memes to build your collection and share them with friends"
+        />
       ) : (
         <MemeGrid
           memes={memes}

@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import Header from "@/components/Header";
 import TabBar from "@/components/TabBar";
 import db from "@/lib/db";
-import ActivityFeed from "@/components/ActivityFeed";
+import ActivityContent from "@/components/ActivityContent";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -48,7 +48,7 @@ export default async function ActivityPage() {
           </Link>
         )}
 
-        <ActivityFeed items={activity} />
+        <ActivityContent items={activity} />
       </main>
 
       <TabBar />
