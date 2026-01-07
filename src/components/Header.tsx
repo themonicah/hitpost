@@ -10,6 +10,33 @@ interface HeaderProps {
   rightAction?: React.ReactNode;
 }
 
+// Fun header decorations based on page
+function HeaderDecoration({ title }: { title?: string }) {
+  if (title === "Activity") {
+    return (
+      <span className="ml-1.5 inline-flex items-center">
+        <span className="animate-bounce text-sm" style={{ animationDelay: "0s" }}>👀</span>
+      </span>
+    );
+  }
+  if (title === "Dump Details") {
+    return (
+      <span className="ml-1.5 inline-flex items-center gap-0.5">
+        <span className="text-sm">📦</span>
+        <span className="text-sm">✨</span>
+      </span>
+    );
+  }
+  if (!title || title === "HitPost") {
+    return (
+      <span className="ml-1 inline-flex items-center">
+        <span className="text-sm animate-pulse">🔥</span>
+      </span>
+    );
+  }
+  return null;
+}
+
 export default function Header({
   email,
   title,
@@ -45,7 +72,10 @@ export default function Header({
           </div>
 
           {/* Center - title */}
-          <h1 className="font-semibold text-lg">{displayTitle || "HitPost"}</h1>
+          <h1 className="font-semibold text-lg flex items-center">
+            {displayTitle || "HitPost"}
+            <HeaderDecoration title={displayTitle || title} />
+          </h1>
 
           {/* Right side - actions + account */}
           <div className="w-20 flex items-center justify-end gap-2">

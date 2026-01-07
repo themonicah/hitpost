@@ -1,5 +1,7 @@
 "use client";
 
+import { useState, useEffect } from "react";
+
 interface EmptyStateProps {
   type: "memes" | "activity" | "dumps" | "groups" | "upload";
   title: string;
@@ -9,6 +11,24 @@ interface EmptyStateProps {
     onClick: () => void;
   };
 }
+
+// Meme-worthy GIFs for empty states
+const GIFS = {
+  memes: "https://media.giphy.com/media/JIX9t2j0ZTN9S/giphy.gif", // Cat typing
+  activity: "https://media.giphy.com/media/tXL4FHPSnVJ0A/giphy.gif", // Waiting skeleton
+  dumps: "https://media.giphy.com/media/xT5LMHxhOfscxPfIfm/giphy.gif", // Throw paper
+  groups: "https://media.giphy.com/media/evB90wPnh5LxG3XU5o/giphy.gif", // Friends
+  upload: "https://media.giphy.com/media/JWF7fOo3XyLgA/giphy.gif", // Upload
+};
+
+// Fun copy for meme culture
+const TAGLINES = {
+  memes: ["your meme folder is emptier than my will to live 💀", "no memes? couldn't be me fr fr", "this is giving... nothing 😭"],
+  activity: ["it's quiet... too quiet 👀", "your notifs are drier than the sahara", "nobody's reacted yet bestie"],
+  dumps: ["you haven't blessed anyone with memes yet", "your friends are waiting... probably", "time to spread the chaos 🔥"],
+  groups: ["no squad assembled yet", "lone wolf energy rn", "time to build your meme council"],
+  upload: ["the void awaits your memes", "feed me content pls", "drag and drop that fire 🔥"],
+};
 
 function MemeIllustration() {
   return (
@@ -138,6 +158,15 @@ function UploadIllustration() {
 }
 
 export default function EmptyState({ type, title, description, action }: EmptyStateProps) {
+  const [showGif, setShowGif] = useState(false);
+  const [tagline, setTagline] = useState("");
+
+  useEffect(() => {
+    // Pick a random tagline
+    const lines = TAGLINES[type];
+    setTagline(lines[Math.floor(Math.random() * lines.length)]);
+  }, [type]);
+
   const illustrations = {
     memes: MemeIllustration,
     activity: ActivityIllustration,
@@ -147,18 +176,46 @@ export default function EmptyState({ type, title, description, action }: EmptySt
   };
 
   const Illustration = illustrations[type];
+  const gifUrl = GIFS[type];
 
   return (
     <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
-      <div className="w-48 h-40 mb-6 animate-float">
-        <Illustration />
-      </div>
+      {/* Toggle between illustration and GIF */}
+      <button
+        onClick={() => setShowGif(!showGif)}
+        className="w-48 h-40 mb-4 rounded-2xl overflow-hidden transition-transform hover:scale-105 active:scale-95"
+      >
+        {showGif ? (
+          <img
+            src={gifUrl}
+            alt=""
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full animate-float">
+            <Illustration />
+          </div>
+        )}
+      </button>
+
+      {/* Tap hint */}
+      <p className="text-xs text-gray-400 mb-4">
+        {showGif ? "tap for illustration" : "tap for gif 👆"}
+      </p>
+
       <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
         {title}
       </h3>
+
+      {/* Fun tagline */}
+      <p className="text-gray-400 text-sm italic mb-2">
+        {tagline}
+      </p>
+
       <p className="text-gray-500 text-sm max-w-xs mb-6">
         {description}
       </p>
+
       {action && (
         <button
           onClick={action.onClick}

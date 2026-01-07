@@ -7,6 +7,7 @@ import MemeUploader from "@/components/MemeUploader";
 import SendDumpModal from "@/components/SendDumpModal";
 import MemeViewer from "@/components/MemeViewer";
 import EmptyState from "@/components/EmptyState";
+import FunLoader from "@/components/FunLoader";
 
 interface HomeContentProps {
   userId: string;
@@ -48,7 +49,7 @@ export default function HomeContent({ userId }: HomeContentProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+        <FunLoader />
       </div>
     );
   }

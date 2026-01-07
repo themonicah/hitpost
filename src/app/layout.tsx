@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import KonamiCode from "@/components/KonamiCode";
+import FloatingEmojis from "@/components/FloatingEmojis";
 
 export const metadata: Metadata = {
   title: "HitPost - Share Meme Dumps",
@@ -22,6 +23,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-screen bg-background text-foreground antialiased">
+        <FloatingEmojis />
         <KonamiCode />
         {children}
       </body>
