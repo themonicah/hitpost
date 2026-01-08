@@ -19,6 +19,7 @@ export interface Dump {
   id: string;
   sender_id: string;
   note: string | null;
+  is_draft: boolean;
   created_at: string;
 }
 
@@ -175,7 +176,7 @@ export const db = {
   // Dumps
   async getDumpById(id: string): Promise<Dump | undefined> {
     const { rows } = await sql<Dump>`
-      SELECT id, sender_id, note, created_at::text
+      SELECT id, sender_id, note, COALESCE(is_draft, false) as is_draft, created_at::text
       FROM dumps
       WHERE id = ${id}
     `;
@@ -184,7 +185,7 @@ export const db = {
 
   async getDumpsByUser(userId: string): Promise<Dump[]> {
     const { rows } = await sql<Dump>`
-      SELECT id, sender_id, note, created_at::text
+      SELECT id, sender_id, note, COALESCE(is_draft, false) as is_draft, created_at::text
       FROM dumps
       WHERE sender_id = ${userId}
       ORDER BY created_at DESC
@@ -192,11 +193,20 @@ export const db = {
     return rows;
   },
 
-  async createDump(dump: { id: string; sender_id: string; note: string | null }): Promise<void> {
+  async createDump(dump: { id: string; sender_id: string; note: string | null; is_draft?: boolean }): Promise<void> {
     await sql`
-      INSERT INTO dumps (id, sender_id, note)
-      VALUES (${dump.id}, ${dump.sender_id}, ${dump.note})
+      INSERT INTO dumps (id, sender_id, note, is_draft)
+      VALUES (${dump.id}, ${dump.sender_id}, ${dump.note}, ${dump.is_draft || false})
     `;
+  },
+
+  async updateDump(id: string, updates: { is_draft?: boolean; note?: string | null }): Promise<void> {
+    if (updates.is_draft !== undefined) {
+      await sql`UPDATE dumps SET is_draft = ${updates.is_draft} WHERE id = ${id}`;
+    }
+    if (updates.note !== undefined) {
+      await sql`UPDATE dumps SET note = ${updates.note} WHERE id = ${id}`;
+    }
   },
 
   // Dump Memes
@@ -218,6 +228,10 @@ export const db = {
       ORDER BY dm.sort_order
     `;
     return rows;
+  },
+
+  async removeMemeFromDump(dumpId: string, memeId: string): Promise<void> {
+    await sql`DELETE FROM dump_memes WHERE dump_id = ${dumpId} AND meme_id = ${memeId}`;
   },
 
   async getDumpMemeCount(dumpId: string): Promise<number> {

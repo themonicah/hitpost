@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { Meme } from "@/lib/db";
 import MemeGrid from "@/components/MemeGrid";
 import MemeUploader from "@/components/MemeUploader";
-import SendDumpModal from "@/components/SendDumpModal";
 import MemeViewer from "@/components/MemeViewer";
 import EmptyState from "@/components/EmptyState";
 import FunLoader from "@/components/FunLoader";
+import DumpsBar, { DumpsBarRef } from "@/components/DumpsBar";
+import DumpDrawer from "@/components/DumpDrawer";
+import DumpCreator from "@/components/DumpCreator";
 
 interface HomeContentProps {
   userId: string;
@@ -18,8 +20,10 @@ export default function HomeContent({ userId }: HomeContentProps) {
   const [loading, setLoading] = useState(true);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [showSendModal, setShowSendModal] = useState(false);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
+  const [selectedDumpId, setSelectedDumpId] = useState<string | null>(null);
+  const [showDumpCreator, setShowDumpCreator] = useState(false);
+  const dumpsBarRef = useRef<DumpsBarRef>(null);
 
   const fetchMemes = useCallback(async () => {
     try {
@@ -46,6 +50,11 @@ export default function HomeContent({ userId }: HomeContentProps) {
     setSelectedIds(new Set());
   }
 
+  function handleAddToDump() {
+    // Open creator with selected memes
+    setShowDumpCreator(true);
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -54,10 +63,12 @@ export default function HomeContent({ userId }: HomeContentProps) {
     );
   }
 
+  const selectedMemes = memes.filter((m) => selectedIds.has(m.id));
+
   return (
     <div className="space-y-4">
-      {/* Upload area */}
-      <MemeUploader onUpload={fetchMemes} />
+      {/* Upload area - compact when library has memes */}
+      <MemeUploader onUpload={fetchMemes} compact={memes.length > 0} />
 
       {/* Meme count and actions */}
       <div className="flex items-center justify-between">
@@ -67,10 +78,10 @@ export default function HomeContent({ userId }: HomeContentProps) {
         <div className="flex items-center gap-2">
           {selectMode && selectedIds.size > 0 && (
             <button
-              onClick={() => setShowSendModal(true)}
+              onClick={handleAddToDump}
               className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-full text-sm font-medium"
             >
-              Send ({selectedIds.size})
+              Add to Dump ({selectedIds.size})
             </button>
           )}
           <button
@@ -119,16 +130,39 @@ export default function HomeContent({ userId }: HomeContentProps) {
         />
       )}
 
-      {/* Send Modal */}
-      <SendDumpModal
-        isOpen={showSendModal}
-        onClose={() => setShowSendModal(false)}
-        selectedMemes={memes.filter((m) => selectedIds.has(m.id))}
-        onSent={() => {
+      {/* Dump Creator - full screen flow */}
+      <DumpCreator
+        isOpen={showDumpCreator}
+        onClose={() => {
+          setShowDumpCreator(false);
           setSelectMode(false);
           setSelectedIds(new Set());
         }}
+        onCreated={(dumpId) => {
+          dumpsBarRef.current?.refresh();
+          setSelectMode(false);
+          setSelectedIds(new Set());
+        }}
+        initialMemes={selectedMemes}
       />
+
+      {/* Dumps Bar - floating at bottom */}
+      <DumpsBar
+        ref={dumpsBarRef}
+        onDumpSelect={setSelectedDumpId}
+        onCreateNew={() => setShowDumpCreator(true)}
+        selectedDumpId={selectedDumpId}
+      />
+
+      {/* Dump Detail Drawer */}
+      <DumpDrawer
+        dumpId={selectedDumpId}
+        onClose={() => setSelectedDumpId(null)}
+        onUpdate={() => dumpsBarRef.current?.refresh()}
+      />
+
+      {/* Spacer for dumps bar */}
+      <div className="h-28" />
     </div>
   );
 }

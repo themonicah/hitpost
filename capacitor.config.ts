@@ -1,6 +1,5 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
-// IMPORTANT: Update this URL after deploying to Vercel
 const PRODUCTION_URL = 'https://hitpost.vercel.app';
 
 const config: CapacitorConfig = {
@@ -8,17 +7,12 @@ const config: CapacitorConfig = {
   appName: 'HitPost',
   webDir: 'out',
   server: {
-    // In production, the app loads from your Vercel server
     url: PRODUCTION_URL,
-    cleartext: false
-  },
-  plugins: {
-    PushNotifications: {
-      presentationOptions: ["badge", "sound", "alert"]
-    }
+    cleartext: false,
   },
   ios: {
-    contentInset: 'automatic'
+    contentInset: 'automatic',
+    scheme: 'HitPost'
   }
 };
 

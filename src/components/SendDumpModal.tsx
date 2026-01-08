@@ -5,6 +5,22 @@ import { Meme } from "@/lib/db";
 import { useRouter } from "next/navigation";
 import Confetti from "./Confetti";
 
+const SENDING_MESSAGES = [
+  "sending the vibes...",
+  "delivering heat...",
+  "dispatching chaos...",
+  "launching memes into orbit...",
+  "blessing inboxes...",
+];
+
+const NOTE_PLACEHOLDERS = [
+  "say something unhinged (optional)",
+  "add context or keep them guessing",
+  "caption this moment",
+  "explain yourself (or don't)",
+  "drop some lore (optional)",
+];
+
 interface Group {
   id: string;
   name: string;
@@ -30,6 +46,8 @@ export default function SendDumpModal({
   const [manualEmails, setManualEmails] = useState("");
   const [note, setNote] = useState("");
   const [sending, setSending] = useState(false);
+  const [sendingMsg, setSendingMsg] = useState(SENDING_MESSAGES[0]);
+  const [notePlaceholder] = useState(() => NOTE_PLACEHOLDERS[Math.floor(Math.random() * NOTE_PLACEHOLDERS.length)]);
   const [error, setError] = useState("");
   const [loadingGroups, setLoadingGroups] = useState(true);
   const [showNewGroup, setShowNewGroup] = useState(false);
@@ -164,12 +182,17 @@ export default function SendDumpModal({
     const recipients = getUniqueRecipients();
 
     if (recipients.length === 0) {
-      setError("Select at least one group or add an email");
+      setError("who's getting blessed with this content? pick someone!");
       return;
     }
 
     setSending(true);
     setError("");
+
+    // Rotate sending messages
+    const msgInterval = setInterval(() => {
+      setSendingMsg(SENDING_MESSAGES[Math.floor(Math.random() * SENDING_MESSAGES.length)]);
+    }, 800);
 
     try {
       const res = await fetch("/api/dumps", {
@@ -188,6 +211,7 @@ export default function SendDumpModal({
       }
 
       const data = await res.json();
+      clearInterval(msgInterval);
       setShowConfetti(true);
       setTimeout(() => {
         onSent?.();
@@ -196,7 +220,8 @@ export default function SendDumpModal({
         router.push(`/dumps/${data.dumpId}`);
       }, 1000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to send");
+      clearInterval(msgInterval);
+      setError(err instanceof Error ? err.message : "something broke. the memes are too powerful");
     } finally {
       setSending(false);
     }
@@ -233,7 +258,7 @@ export default function SendDumpModal({
             disabled={sending || recipientCount === 0}
             className="text-blue-500 font-semibold disabled:opacity-50"
           >
-            {sending ? "Sending..." : "Send"}
+            {sending ? sendingMsg : "Send"}
           </button>
         </div>
 
@@ -278,7 +303,7 @@ export default function SendDumpModal({
             <textarea
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="Add a note (optional)"
+              placeholder={notePlaceholder}
               className="w-full px-4 py-3 bg-gray-100 dark:bg-gray-800 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
               rows={2}
             />

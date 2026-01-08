@@ -80,7 +80,7 @@ export default function MemeGrid({
   }
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+    <div className="grid grid-cols-3 gap-0.5">
       {memes.map((meme, index) => {
         const isSelected = selectedIds.has(meme.id);
         const isDeleting = deletingId === meme.id;
@@ -91,9 +91,9 @@ export default function MemeGrid({
         return (
           <div
             key={meme.id}
-            className={`relative aspect-square rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800 transition-all duration-200 ${
-              selectable || onMemeClick ? "cursor-pointer active:scale-95" : ""
-            } ${isSelected ? "ring-4 ring-blue-500 scale-[0.96]" : "hover:scale-[1.02]"} ${
+            className={`relative aspect-square overflow-hidden bg-gray-100 dark:bg-gray-800 transition-all duration-150 ${
+              selectable || onMemeClick ? "cursor-pointer" : ""
+            } ${isSelected ? "opacity-60" : ""} ${
               isDeleting ? "opacity-50" : ""
             } ${isShaking ? "animate-shake" : ""}`}
             onClick={() => {
@@ -141,18 +141,7 @@ export default function MemeGrid({
               </div>
             )}
 
-            {onDelete && !selectable && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDelete(meme.id);
-                }}
-                className="absolute top-2 right-2 w-8 h-8 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity"
-                disabled={isDeleting}
-              >
-                &times;
-              </button>
-            )}
+{/* Delete moved to detail view */}
           </div>
         );
       })}

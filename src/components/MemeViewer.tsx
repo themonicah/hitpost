@@ -142,38 +142,43 @@ export default function MemeViewer({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black animate-fadeIn"
+      className="fixed inset-0 z-[100] bg-black"
       style={{ backgroundColor: `rgba(0, 0, 0, ${opacity})` }}
     >
-      {/* Close button */}
-      <button
-        onClick={onClose}
-        className="absolute top-4 right-4 z-50 w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center text-white text-xl transition-all duration-200 hover:scale-110 active:scale-95"
-      >
-        ×
-      </button>
+      {/* Header bar */}
+      <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-4 pt-14 pb-4 bg-gradient-to-b from-black/80 to-transparent">
+        {/* Counter */}
+        <div className="text-white/70 text-sm font-medium">
+          {currentIndex + 1} / {memes.length}
+        </div>
 
-      {/* Counter */}
-      <div className="absolute top-4 left-4 z-50 text-white/70 text-sm">
-        {currentIndex + 1} / {memes.length}
-      </div>
+        {/* Select button (center) */}
+        {selectable ? (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleSelection();
+            }}
+            className={`px-5 py-2 rounded-full font-semibold transition-all duration-200 active:scale-95 ${
+              isSelected
+                ? "bg-blue-500 text-white"
+                : "bg-white/20 text-white"
+            }`}
+          >
+            {isSelected ? "✓ Selected" : "Select"}
+          </button>
+        ) : (
+          <div />
+        )}
 
-      {/* Select button */}
-      {selectable && (
+        {/* Close button */}
         <button
-          onClick={(e) => {
-            e.stopPropagation();
-            toggleSelection();
-          }}
-          className={`absolute top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full font-medium transition-all duration-200 active:scale-95 ${
-            isSelected
-              ? "bg-blue-500 text-white"
-              : "bg-white/20 text-white hover:bg-white/30"
-          }`}
+          onClick={onClose}
+          className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-white text-xl transition-all duration-200 active:scale-95"
         >
-          {isSelected ? "✓ Selected" : "Select"}
+          ×
         </button>
-      )}
+      </div>
 
       {/* Main content */}
       <div
@@ -230,13 +235,13 @@ export default function MemeViewer({
       )}
 
       {/* Keyboard hint */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/40 text-xs hidden sm:block">
+      <div className="absolute bottom-8 pb-safe left-1/2 -translate-x-1/2 text-white/40 text-xs hidden sm:block">
         Use arrow keys to navigate, Esc to close
       </div>
 
       {/* Swipe hint (mobile) */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/40 text-xs sm:hidden">
-        Swipe to navigate
+      <div className="absolute bottom-8 pb-safe left-1/2 -translate-x-1/2 text-white/40 text-xs sm:hidden">
+        Swipe to navigate • Drag down to close
       </div>
     </div>
   );

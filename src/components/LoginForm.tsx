@@ -1,13 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+
+const LOADING_MESSAGES = [
+  "entering the meme dimension...",
+  "loading your chaos...",
+  "summoning the vibes...",
+  "unlocking the vault...",
+];
 
 export default function LoginForm() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingMsg, setLoadingMsg] = useState(LOADING_MESSAGES[0]);
   const [error, setError] = useState("");
   const router = useRouter();
+
+  useEffect(() => {
+    if (loading) {
+      const interval = setInterval(() => {
+        setLoadingMsg(LOADING_MESSAGES[Math.floor(Math.random() * LOADING_MESSAGES.length)]);
+      }, 800);
+      return () => clearInterval(interval);
+    }
+  }, [loading]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -28,7 +45,7 @@ export default function LoginForm() {
       router.push("/library");
       router.refresh();
     } catch {
-      setError("Something went wrong. Please try again.");
+      setError("login machine broke. try again bestie");
     } finally {
       setLoading(false);
     }
@@ -41,7 +58,7 @@ export default function LoginForm() {
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="Enter your email"
+          placeholder="drop your email here"
           required
           className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 text-lg"
           disabled={loading}
@@ -57,7 +74,7 @@ export default function LoginForm() {
         disabled={loading || !email}
         className="w-full py-3 px-4 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-colors text-lg"
       >
-        {loading ? "Signing in..." : "Continue"}
+        {loading ? loadingMsg : "let me in"}
       </button>
     </form>
   );

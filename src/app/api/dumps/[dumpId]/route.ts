@@ -40,6 +40,7 @@ export async function GET(
         id: dump.id,
         note: dump.note,
         created_at: dump.created_at,
+        is_draft: dump.is_draft || false,
         memes: memes.map((m) => ({
           id: m.id,
           file_url: m.file_url,
@@ -51,5 +52,34 @@ export async function GET(
   } catch (error) {
     console.error("Get dump error:", error);
     return NextResponse.json({ error: "Failed to get dump" }, { status: 500 });
+  }
+}
+
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ dumpId: string }> }
+) {
+  const user = await getSession();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { dumpId } = await params;
+
+  try {
+    const dump = await db.getDumpById(dumpId);
+
+    if (!dump || dump.sender_id !== user.id) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    const { note } = await req.json();
+
+    await db.updateDump(dumpId, { note });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Update dump error:", error);
+    return NextResponse.json({ error: "Failed to update dump" }, { status: 500 });
   }
 }

@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 
 interface MemeUploaderProps {
   onUpload: () => void;
+  compact?: boolean;
 }
 
 const UPLOAD_PROMPTS = [
@@ -21,7 +22,7 @@ const UPLOADING_MESSAGES = [
   "almost there bestie...",
 ];
 
-export default function MemeUploader({ onUpload }: MemeUploaderProps) {
+export default function MemeUploader({ onUpload, compact = false }: MemeUploaderProps) {
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -92,6 +93,50 @@ export default function MemeUploader({ onUpload }: MemeUploaderProps) {
   function handleClick() {
     // Programmatically click the file input for better mobile support
     fileInputRef.current?.click();
+  }
+
+  if (compact) {
+    return (
+      <div
+        className={`flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-900 rounded-xl transition-colors ${
+          dragOver ? "bg-blue-50 dark:bg-blue-900/20" : ""
+        } ${uploading ? "opacity-50" : ""}`}
+        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={handleDrop}
+      >
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*,video/*"
+          multiple
+          onChange={(e) => uploadFiles(e.target.files)}
+          className="hidden"
+          disabled={uploading}
+        />
+        <button
+          type="button"
+          onClick={handleClick}
+          disabled={uploading}
+          className="flex items-center gap-3 flex-1"
+        >
+          <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-xl flex items-center justify-center shadow-md">
+            {uploading ? (
+              <span className="text-lg animate-spin">⏳</span>
+            ) : (
+              <span className="text-lg">➕</span>
+            )}
+          </div>
+          <div className="text-left">
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              {uploading ? uploadMsg : "Add memes"}
+            </p>
+            <p className="text-xs text-gray-400">photos & videos</p>
+          </div>
+        </button>
+        {error && <p className="text-xs text-red-500">{error}</p>}
+      </div>
+    );
   }
 
   return (

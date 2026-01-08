@@ -37,21 +37,33 @@ export default function ActivityDetailDrawer({ dumpId, onClose }: ActivityDetail
     }
   }, [dumpId]);
 
+  // Prevent body scroll when drawer is open
+  useEffect(() => {
+    if (dumpId) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [dumpId]);
+
   if (!dumpId) return null;
 
   const viewedCount = dump?.recipients.filter((r) => r.viewed_at).length || 0;
   const totalRecipients = dump?.recipients.length || 0;
 
   return (
-    <div className="fixed inset-0 z-50 animate-fadeIn">
+    <div className="fixed inset-0 z-[60] animate-fadeIn">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
       />
 
-      {/* Drawer */}
-      <div className="absolute bottom-0 left-0 right-0 bg-white dark:bg-gray-900 rounded-t-3xl max-h-[85vh] overflow-hidden animate-slideUp">
+      {/* Drawer on mobile, Modal on desktop */}
+      <div className="absolute bottom-0 left-0 right-0 sm:bottom-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:max-w-lg sm:w-full sm:mx-4 bg-white dark:bg-gray-900 rounded-t-3xl sm:rounded-3xl max-h-[85vh] overflow-hidden animate-slideUp sm:animate-scaleIn">
         {/* Handle */}
         <div className="flex justify-center pt-3 pb-2">
           <div className="w-10 h-1 bg-gray-300 dark:bg-gray-700 rounded-full" />

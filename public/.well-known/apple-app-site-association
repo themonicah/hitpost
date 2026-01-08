@@ -1,0 +1,19 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "TEAM_ID.com.hitpost.app",
+        "paths": [
+          "/view/*",
+          "/dumps/*"
+        ]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": [
+      "TEAM_ID.com.hitpost.app"
+    ]
+  }
+}
