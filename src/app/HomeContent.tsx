@@ -127,6 +127,7 @@ export default function HomeContent({ userId }: HomeContentProps) {
             setSelectedIds(ids);
             if (ids.size > 0) setSelectMode(true);
           }}
+          onDelete={handleDelete}
         />
       )}
 

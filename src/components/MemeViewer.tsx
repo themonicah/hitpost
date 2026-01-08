@@ -10,6 +10,7 @@ interface MemeViewerProps {
   selectable?: boolean;
   selectedIds?: Set<string>;
   onSelectionChange?: (ids: Set<string>) => void;
+  onDelete?: (memeId: string) => void;
 }
 
 export default function MemeViewer({
@@ -19,8 +20,11 @@ export default function MemeViewer({
   selectable = false,
   selectedIds = new Set(),
   onSelectionChange,
+  onDelete,
 }: MemeViewerProps) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -77,6 +81,29 @@ export default function MemeViewer({
       newSelected.add(currentMeme.id);
     }
     onSelectionChange(newSelected);
+  }
+
+  async function handleDelete() {
+    if (!onDelete) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/memes/${currentMeme.id}`, { method: "DELETE" });
+      if (res.ok) {
+        onDelete(currentMeme.id);
+        // If this was the last meme, close the viewer
+        if (memes.length === 1) {
+          onClose();
+        } else if (currentIndex >= memes.length - 1) {
+          // If we deleted the last item, go to previous
+          setCurrentIndex(currentIndex - 1);
+        }
+        setShowDeleteConfirm(false);
+      }
+    } catch (err) {
+      console.error("Failed to delete:", err);
+    } finally {
+      setDeleting(false);
+    }
   }
 
   function handleTouchStart(e: React.TouchEvent) {
@@ -152,32 +179,50 @@ export default function MemeViewer({
           {currentIndex + 1} / {memes.length}
         </div>
 
-        {/* Select button (center) */}
-        {selectable ? (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleSelection();
-            }}
-            className={`px-5 py-2 rounded-full font-semibold transition-all duration-200 active:scale-95 ${
-              isSelected
-                ? "bg-blue-500 text-white"
-                : "bg-white/20 text-white"
-            }`}
-          >
-            {isSelected ? "✓ Selected" : "Select"}
-          </button>
-        ) : (
-          <div />
-        )}
+        {/* Center actions */}
+        <div className="flex items-center gap-3">
+          {selectable && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleSelection();
+              }}
+              className={`px-5 py-2 rounded-full font-semibold transition-all duration-200 active:scale-95 ${
+                isSelected
+                  ? "bg-blue-500 text-white"
+                  : "bg-white/20 text-white"
+              }`}
+            >
+              {isSelected ? "✓ Selected" : "Select"}
+            </button>
+          )}
+        </div>
 
-        {/* Close button */}
-        <button
-          onClick={onClose}
-          className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-white text-xl transition-all duration-200 active:scale-95"
-        >
-          ×
-        </button>
+        {/* Right actions */}
+        <div className="flex items-center gap-2">
+          {/* Delete button */}
+          {onDelete && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowDeleteConfirm(true);
+              }}
+              className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-white transition-all duration-200 active:scale-95"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          )}
+
+          {/* Close button */}
+          <button
+            onClick={onClose}
+            className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-white text-xl transition-all duration-200 active:scale-95"
+          >
+            ×
+          </button>
+        </div>
       </div>
 
       {/* Main content */}
@@ -243,6 +288,34 @@ export default function MemeViewer({
       <div className="absolute bottom-8 pb-safe left-1/2 -translate-x-1/2 text-white/40 text-xs sm:hidden">
         Swipe to navigate • Drag down to close
       </div>
+
+      {/* Delete confirmation modal */}
+      {showDeleteConfirm && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/80">
+          <div className="bg-gray-900 rounded-2xl p-6 mx-8 max-w-sm w-full">
+            <h3 className="text-white text-lg font-bold text-center mb-2">Delete Meme?</h3>
+            <p className="text-white/60 text-center text-sm mb-6">
+              This will permanently delete this meme from your library.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 py-3 bg-white/10 text-white font-semibold rounded-xl"
+                disabled={deleting}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex-1 py-3 bg-red-500 text-white font-semibold rounded-xl"
+              >
+                {deleting ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
