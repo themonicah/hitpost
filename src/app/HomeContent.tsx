@@ -8,6 +8,7 @@ import FunLoader from "@/components/FunLoader";
 import DumpsBar, { DumpsBarRef } from "@/components/DumpsBar";
 import DumpDrawer from "@/components/DumpDrawer";
 import DumpCreator from "@/components/DumpCreator";
+import AddToDumpModal from "@/components/AddToDumpModal";
 
 interface HomeContentProps {
   userId: string;
@@ -21,6 +22,7 @@ export default function HomeContent({ userId }: HomeContentProps) {
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const [selectedDumpId, setSelectedDumpId] = useState<string | null>(null);
   const [showDumpCreator, setShowDumpCreator] = useState(false);
+  const [showAddToDump, setShowAddToDump] = useState(false);
   const [uploading, setUploading] = useState(false);
   const dumpsBarRef = useRef<DumpsBarRef>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -43,6 +45,8 @@ export default function HomeContent({ userId }: HomeContentProps) {
 
   function handleDelete(id: string) {
     setMemes((prev) => prev.filter((m) => m.id !== id));
+    // Refresh dumps bar since the meme might have been in a dump
+    dumpsBarRef.current?.refresh();
   }
 
   async function handleUpload(files: FileList | null) {
@@ -67,8 +71,8 @@ export default function HomeContent({ userId }: HomeContentProps) {
   }
 
   function handleAddToDump() {
-    // Open creator with selected memes
-    setShowDumpCreator(true);
+    // Open modal to choose new or existing dump
+    setShowAddToDump(true);
   }
 
   if (loading) {
@@ -148,20 +152,32 @@ export default function HomeContent({ userId }: HomeContentProps) {
         />
       )}
 
-      {/* Dump Creator - full screen flow */}
-      <DumpCreator
-        isOpen={showDumpCreator}
+      {/* Add to Dump Modal - choose new or existing */}
+      <AddToDumpModal
+        isOpen={showAddToDump}
         onClose={() => {
-          setShowDumpCreator(false);
+          setShowAddToDump(false);
           setSelectMode(false);
           setSelectedIds(new Set());
         }}
-        onCreated={(dumpId) => {
+        selectedMemes={selectedMemes}
+        onComplete={() => {
           dumpsBarRef.current?.refresh();
           setSelectMode(false);
           setSelectedIds(new Set());
         }}
-        initialMemes={selectedMemes}
+      />
+
+      {/* Dump Creator - full screen flow (for creating from DumpsBar) */}
+      <DumpCreator
+        isOpen={showDumpCreator}
+        onClose={() => {
+          setShowDumpCreator(false);
+        }}
+        onCreated={(dumpId) => {
+          dumpsBarRef.current?.refresh();
+        }}
+        initialMemes={[]}
       />
 
       {/* Dumps Bar - floating at bottom */}

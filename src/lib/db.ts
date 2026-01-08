@@ -170,6 +170,10 @@ export const db = {
   },
 
   async deleteMeme(id: string): Promise<void> {
+    // Remove from dumps and collections first (clean up references)
+    await sql`DELETE FROM dump_memes WHERE meme_id = ${id}`;
+    await sql`DELETE FROM collection_memes WHERE meme_id = ${id}`;
+    // Then delete the meme itself
     await sql`DELETE FROM memes WHERE id = ${id}`;
   },
 
