@@ -6,7 +6,9 @@ interface DumpItem {
   id: string;
   note: string | null;
   meme_count: number;
+  recipient_count: number;
   preview_url: string | null;
+  preview_urls: string[];
   is_draft: boolean;
 }
 
@@ -70,102 +72,112 @@ const DumpsBar = forwardRef<DumpsBarRef, DumpsBarProps>(function DumpsBar(
   const drafts = dumps.filter(d => d.is_draft);
   const sent = dumps.filter(d => !d.is_draft);
 
+  // Render a 3x3 mini grid for a dump
+  function MiniGrid({ urls, memeCount }: { urls: string[]; memeCount: number }) {
+    const slots = Array(9).fill(null).map((_, i) => urls[i] || null);
+    return (
+      <div className="grid grid-cols-3 gap-px w-full h-full bg-gray-700 rounded-lg overflow-hidden">
+        {slots.map((url, i) => (
+          <div key={i} className="aspect-square bg-gray-800">
+            {url ? (
+              <img src={url} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-gray-600 text-[8px]">
+                {i < memeCount ? "..." : ""}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
-    <div className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-0 right-0 z-40 px-4">
-      <div className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200 dark:border-gray-800 p-3">
+    <div className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-0 right-0 z-40 px-3">
+      <div className="bg-black/90 backdrop-blur-xl rounded-2xl shadow-lg border border-white/10 p-3">
         <div className="flex items-center gap-2 mb-2">
-          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Dumps</span>
-          <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
+          <span className="text-xs font-semibold text-white/50 uppercase tracking-wide">Dumps</span>
+          <div className="flex-1 h-px bg-white/10" />
         </div>
 
         <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
           {/* New Dump Button */}
           <button
             onClick={handleCreateClick}
-            className="flex-shrink-0 w-16 h-16 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex flex-col items-center justify-center text-white shadow-md hover:shadow-lg transition-shadow"
+            className="flex-shrink-0 w-24 h-28 rounded-xl bg-white/10 border-2 border-dashed border-white/20 flex flex-col items-center justify-center text-white/60 transition-all active:scale-95"
           >
-            <span className="text-2xl">+</span>
-            <span className="text-[10px] font-medium">New</span>
+            <span className="text-3xl mb-1">+</span>
+            <span className="text-xs font-medium">New Dump</span>
           </button>
 
           {/* Loading state */}
           {loading && (
-            <div className="flex-shrink-0 w-16 h-16 rounded-xl bg-gray-100 dark:bg-gray-800 animate-pulse" />
+            <div className="flex-shrink-0 w-24 h-28 rounded-xl bg-white/5 animate-pulse" />
           )}
 
-          {/* Draft dumps (bright) */}
+          {/* Draft dumps */}
           {drafts.map((dump) => (
             <button
               key={dump.id}
               onClick={() => handleDumpClick(dump.id)}
-              className={`flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden relative transition-all ${
+              className={`flex-shrink-0 w-24 rounded-xl overflow-hidden bg-white/5 transition-all ${
                 selectedDumpId === dump.id
-                  ? "ring-2 ring-blue-500 scale-105"
-                  : "hover:scale-105"
+                  ? "ring-2 ring-amber-500 scale-105"
+                  : "active:scale-95"
               }`}
             >
-              {dump.preview_url ? (
-                <img
-                  src={dump.preview_url}
-                  alt=""
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-                  <span className="text-2xl">📦</span>
-                </div>
-              )}
-
-              {/* Draft badge */}
-              <div className="absolute top-0.5 left-0.5 bg-amber-500 text-white text-[8px] font-bold px-1 rounded">
-                DRAFT
+              {/* 3x3 Grid */}
+              <div className="h-16 p-1">
+                <MiniGrid urls={dump.preview_urls || []} memeCount={dump.meme_count} />
               </div>
 
-              {/* Meme count badge */}
-              <div className="absolute bottom-0.5 right-0.5 bg-black/70 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md">
-                {dump.meme_count}
+              {/* Info */}
+              <div className="px-2 py-1.5 text-left">
+                <p className="text-white text-[11px] font-medium truncate">
+                  {dump.note || "Untitled"}
+                </p>
+                <div className="flex items-center gap-1 text-amber-400 text-[10px]">
+                  <span>Draft</span>
+                  <span className="text-white/40">•</span>
+                  <span className="text-white/50">{dump.meme_count} memes</span>
+                </div>
               </div>
             </button>
           ))}
 
-          {/* Sent dumps (grayed out) */}
+          {/* Sent dumps */}
           {sent.map((dump) => (
             <button
               key={dump.id}
               onClick={() => handleDumpClick(dump.id)}
-              className={`flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden relative transition-all opacity-50 ${
+              className={`flex-shrink-0 w-24 rounded-xl overflow-hidden bg-white/5 transition-all ${
                 selectedDumpId === dump.id
-                  ? "ring-2 ring-gray-400 scale-105 opacity-100"
-                  : "hover:opacity-75"
+                  ? "ring-2 ring-green-500 scale-105"
+                  : "active:scale-95 opacity-70"
               }`}
             >
-              {dump.preview_url ? (
-                <img
-                  src={dump.preview_url}
-                  alt=""
-                  className="w-full h-full object-cover grayscale"
-                />
-              ) : (
-                <div className="w-full h-full bg-gray-300 dark:bg-gray-800 flex items-center justify-center">
-                  <span className="text-2xl grayscale">📦</span>
-                </div>
-              )}
-
-              {/* Sent badge */}
-              <div className="absolute top-0.5 left-0.5 bg-green-600 text-white text-[8px] font-bold px-1 rounded">
-                SENT
+              {/* 3x3 Grid */}
+              <div className="h-16 p-1">
+                <MiniGrid urls={dump.preview_urls || []} memeCount={dump.meme_count} />
               </div>
 
-              {/* Meme count badge */}
-              <div className="absolute bottom-0.5 right-0.5 bg-black/50 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md">
-                {dump.meme_count}
+              {/* Info */}
+              <div className="px-2 py-1.5 text-left">
+                <p className="text-white text-[11px] font-medium truncate">
+                  {dump.note || "Untitled"}
+                </p>
+                <div className="flex items-center gap-1 text-green-400 text-[10px]">
+                  <span>Sent</span>
+                  <span className="text-white/40">•</span>
+                  <span className="text-white/50">{dump.recipient_count} people</span>
+                </div>
               </div>
             </button>
           ))}
 
           {/* Empty state */}
           {!loading && dumps.length === 0 && (
-            <div className="flex items-center text-sm text-gray-400 px-2">
+            <div className="flex items-center text-sm text-white/40 px-2">
               Tap + to create a dump
             </div>
           )}

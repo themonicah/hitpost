@@ -137,6 +137,7 @@ export async function GET(req: NextRequest) {
           recipient_count: stats.recipientCount,
           viewed_count: stats.viewedCount,
           preview_url: memes[0]?.file_url || null,
+          preview_urls: memes.slice(0, 9).map(m => m.file_url),
         };
       })
   );
