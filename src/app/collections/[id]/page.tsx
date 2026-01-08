@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Header from "@/components/Header";
-import TabBar from "@/components/TabBar";
 import Link from "next/link";
 import { Meme } from "@/lib/db";
 
@@ -129,32 +128,30 @@ export default function CollectionDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-20">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-8">
         <Header email={userEmail || "Loading..."} title="Dump" showBack />
         <main className="max-w-4xl mx-auto px-4 py-6">
           <div className="flex items-center justify-center py-20">
             <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
           </div>
         </main>
-        <TabBar />
       </div>
     );
   }
 
   if (!collection) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-20">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-8">
         <Header email={userEmail} title="Dump" showBack />
         <main className="max-w-4xl mx-auto px-4 py-6">
           <p className="text-center text-gray-500">Dump not found</p>
         </main>
-        <TabBar />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-20">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-8">
       <Header email={userEmail} title={collection.name} showBack />
 
       <main className="max-w-4xl mx-auto px-4 py-4">
@@ -276,8 +273,6 @@ export default function CollectionDetailPage() {
           </div>
         )}
       </main>
-
-      <TabBar />
     </div>
   );
 }

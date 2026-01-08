@@ -1,7 +1,6 @@
 import { getSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Header from "@/components/Header";
-import TabBar from "@/components/TabBar";
 import db from "@/lib/db";
 import Link from "next/link";
 
@@ -40,10 +39,11 @@ export default async function DumpsPage() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-20">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-8">
       <Header
         email={user.email}
         title="Dumps"
+        showBack
         rightAction={
           <Link
             href="/dumps/create"
@@ -237,8 +237,6 @@ export default async function DumpsPage() {
           )}
         </section>
       </main>
-
-      <TabBar />
     </div>
   );
 }

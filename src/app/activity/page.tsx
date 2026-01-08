@@ -1,7 +1,6 @@
 import { getSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Header from "@/components/Header";
-import TabBar from "@/components/TabBar";
 import db from "@/lib/db";
 import ActivityContent from "@/components/ActivityContent";
 import Link from "next/link";
@@ -21,8 +20,8 @@ export default async function ActivityPage() {
   ]);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-20">
-      <Header email={user.email} title="Activity" />
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-8">
+      <Header email={user.email} title="Activity" showBack />
 
       <main className="max-w-2xl mx-auto px-4 py-4 space-y-4">
         {/* Quick access to sent dumps */}
@@ -50,8 +49,6 @@ export default async function ActivityPage() {
 
         <ActivityContent items={activity} />
       </main>
-
-      <TabBar />
     </div>
   );
 }

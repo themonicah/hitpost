@@ -93,7 +93,7 @@ const DumpsBar = forwardRef<DumpsBarRef, DumpsBarProps>(function DumpsBar(
   }
 
   return (
-    <div className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-0 right-0 z-40 px-3">
+    <div className="fixed bottom-0 left-0 right-0 z-40 px-3 pb-safe">
       <div className="bg-black/90 backdrop-blur-xl rounded-2xl shadow-lg border border-white/10 p-3">
         <div className="flex items-center gap-2 mb-2">
           <span className="text-xs font-semibold text-white/50 uppercase tracking-wide">Dumps</span>

@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/components/Header";
-import TabBar from "@/components/TabBar";
 
 interface GroupMember {
   id: string;
@@ -169,23 +168,23 @@ export default function GroupsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-20">
-        <Header email={userEmail || "Loading..."} title="Circles" />
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-8">
+        <Header email={userEmail || "Loading..."} title="Circles" showBack />
         <main className="max-w-4xl mx-auto px-4 py-6">
           <div className="flex items-center justify-center py-20">
             <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
           </div>
         </main>
-        <TabBar />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-20">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-8">
       <Header
         email={userEmail}
         title="Circles"
+        showBack
         rightAction={
           <button
             onClick={() => setShowNewGroup(true)}
@@ -477,8 +476,6 @@ export default function GroupsPage() {
           </div>
         )}
       </main>
-
-      <TabBar />
     </div>
   );
 }

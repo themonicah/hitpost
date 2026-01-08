@@ -1,7 +1,6 @@
 import { getSession } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
 import Header from "@/components/Header";
-import TabBar from "@/components/TabBar";
 import db, { Reaction } from "@/lib/db";
 import CopyLinkButton from "./CopyLinkButton";
 import { headers } from "next/headers";
@@ -49,7 +48,7 @@ export default async function DumpDetailPage({ params }: DumpDetailPageProps) {
   const baseUrl = `${protocol}://${host}`;
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-20">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-8">
       <Header email={user.email} title="Dump Details" showBack />
 
       <main className="max-w-4xl mx-auto px-4 py-4">
@@ -173,8 +172,6 @@ export default async function DumpDetailPage({ params }: DumpDetailPageProps) {
           Sent {new Date(dump.created_at).toLocaleString()}
         </p>
       </main>
-
-      <TabBar />
     </div>
   );
 }
