@@ -5,7 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 
 interface HeaderProps {
-  email: string;
+  email: string | null;
   title?: string;
   showBack?: boolean;
   rightAction?: React.ReactNode;
@@ -118,7 +118,10 @@ export default function Header({
                   />
                   <div className="absolute right-0 top-10 z-20 w-48 bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-100 dark:border-gray-800 py-2">
                     <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-800">
-                      <p className="text-sm font-medium truncate">{email}</p>
+                      <p className="text-sm font-medium truncate">{email || "Guest"}</p>
+                      {!email && (
+                        <p className="text-xs text-gray-400 mt-0.5">Add email to backup</p>
+                      )}
                     </div>
                     <button
                       onClick={handleLogout}

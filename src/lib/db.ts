@@ -1,9 +1,19 @@
 import { sql } from "@vercel/postgres";
 
+// Claim code generator
+const CLAIM_WORDS = ["VIBE", "MEME", "DUMP", "FIRE", "GOLD", "EPIC", "COOL", "HYPE", "MOOD", "FLEX", "YEET", "DANK", "SPICY", "CHEF", "GOAT", "KING", "QUEEN", "WILD", "PURE", "FRESH"];
+
+export function generateClaimCode(): string {
+  const word = CLAIM_WORDS[Math.floor(Math.random() * CLAIM_WORDS.length)];
+  const num = Math.floor(Math.random() * 90) + 10;
+  return `${word}${num}`;
+}
+
 // Types
 export interface User {
   id: string;
-  email: string;
+  email: string | null;
+  device_id: string | null;
   created_at: string;
 }
 
@@ -20,6 +30,7 @@ export interface Dump {
   sender_id: string;
   note: string | null;
   is_draft: boolean;
+  share_token: string | null;
   created_at: string;
 }
 
@@ -33,8 +44,12 @@ export interface DumpMeme {
 export interface DumpRecipient {
   id: string;
   dump_id: string;
-  email: string;
+  name: string;
+  email: string | null;
   token: string;
+  claim_code: string;
+  user_id: string | null;
+  claimed_at: string | null;
   viewed_at: string | null;
   view_count: number;
   recipient_note: string | null;
@@ -98,7 +113,7 @@ export interface PushToken {
 
 export interface ActivityItem {
   id: string;
-  type: "view" | "reaction" | "note" | "sent";
+  type: "view" | "reaction" | "note" | "sent" | "received";
   timestamp: string;
   recipientEmail: string;
   dumpId: string;
@@ -109,6 +124,7 @@ export interface ActivityItem {
   noteText?: string;
   memeCount?: number;
   recipientCount?: number;
+  senderEmail?: string;  // For received dumps
 }
 
 // Database operations
@@ -124,8 +140,27 @@ export const db = {
     return rows[0];
   },
 
-  async createUser(user: { id: string; email: string }): Promise<void> {
-    await sql`INSERT INTO users (id, email) VALUES (${user.id}, ${user.email})`;
+  async getUserByDeviceId(deviceId: string): Promise<User | undefined> {
+    const { rows } = await sql<User>`SELECT * FROM users WHERE device_id = ${deviceId}`;
+    return rows[0];
+  },
+
+  async createUser(user: { id: string; email?: string | null; device_id?: string | null }): Promise<void> {
+    await sql`INSERT INTO users (id, email, device_id) VALUES (${user.id}, ${user.email || null}, ${user.device_id || null})`;
+  },
+
+  async getOrCreateUserByDeviceId(deviceId: string): Promise<User> {
+    let user = await this.getUserByDeviceId(deviceId);
+    if (!user) {
+      const id = crypto.randomUUID();
+      await this.createUser({ id, device_id: deviceId });
+      user = { id, email: null, device_id: deviceId, created_at: new Date().toISOString() };
+    }
+    return user;
+  },
+
+  async addEmailToUser(userId: string, email: string): Promise<void> {
+    await sql`UPDATE users SET email = ${email} WHERE id = ${userId}`;
   },
 
   // Memes
@@ -180,16 +215,25 @@ export const db = {
   // Dumps
   async getDumpById(id: string): Promise<Dump | undefined> {
     const { rows } = await sql<Dump>`
-      SELECT id, sender_id, note, COALESCE(is_draft, false) as is_draft, created_at::text
+      SELECT id, sender_id, note, COALESCE(is_draft, false) as is_draft, share_token, created_at::text
       FROM dumps
       WHERE id = ${id}
     `;
     return rows[0];
   },
 
+  async getDumpByShareToken(shareToken: string): Promise<Dump | undefined> {
+    const { rows } = await sql<Dump>`
+      SELECT id, sender_id, note, COALESCE(is_draft, false) as is_draft, share_token, created_at::text
+      FROM dumps
+      WHERE share_token = ${shareToken}
+    `;
+    return rows[0];
+  },
+
   async getDumpsByUser(userId: string): Promise<Dump[]> {
     const { rows } = await sql<Dump>`
-      SELECT id, sender_id, note, COALESCE(is_draft, false) as is_draft, created_at::text
+      SELECT id, sender_id, note, COALESCE(is_draft, false) as is_draft, share_token, created_at::text
       FROM dumps
       WHERE sender_id = ${userId}
       ORDER BY created_at DESC
@@ -197,20 +241,62 @@ export const db = {
     return rows;
   },
 
-  async createDump(dump: { id: string; sender_id: string; note: string | null; is_draft?: boolean }): Promise<void> {
+  async getReceivedDumps(userId: string): Promise<(Dump & { sender_email: string; viewed_at: string | null; recipient_id: string })[]> {
+    const user = await this.getUserById(userId);
+    if (!user) return [];
+
+    const { rows } = await sql<Dump & { sender_email: string; viewed_at: string; recipient_id: string }>`
+      SELECT d.id, d.sender_id, d.note, COALESCE(d.is_draft, false) as is_draft, d.share_token, d.created_at::text,
+             u.email as sender_email, dr.viewed_at::text, dr.id as recipient_id
+      FROM dumps d
+      JOIN dump_recipients dr ON d.id = dr.dump_id
+      JOIN users u ON d.sender_id = u.id
+      WHERE dr.user_id = ${userId}
+      ORDER BY d.created_at DESC
+    `;
+    return rows;
+  },
+
+  async createDump(dump: { id: string; sender_id: string; note: string | null; is_draft?: boolean; share_token?: string }): Promise<void> {
     await sql`
-      INSERT INTO dumps (id, sender_id, note, is_draft)
-      VALUES (${dump.id}, ${dump.sender_id}, ${dump.note}, ${dump.is_draft || false})
+      INSERT INTO dumps (id, sender_id, note, is_draft, share_token)
+      VALUES (${dump.id}, ${dump.sender_id}, ${dump.note}, ${dump.is_draft || false}, ${dump.share_token || null})
     `;
   },
 
-  async updateDump(id: string, updates: { is_draft?: boolean; note?: string | null }): Promise<void> {
+  async updateDump(id: string, updates: { is_draft?: boolean; note?: string | null; share_token?: string }): Promise<void> {
     if (updates.is_draft !== undefined) {
       await sql`UPDATE dumps SET is_draft = ${updates.is_draft} WHERE id = ${id}`;
     }
     if (updates.note !== undefined) {
       await sql`UPDATE dumps SET note = ${updates.note} WHERE id = ${id}`;
     }
+    if (updates.share_token !== undefined) {
+      await sql`UPDATE dumps SET share_token = ${updates.share_token} WHERE id = ${id}`;
+    }
+  },
+
+  async claimDump(dumpId: string, userId: string): Promise<{ success: boolean; alreadyClaimed?: boolean }> {
+    // Check if user already claimed this dump
+    const { rows: existing } = await sql`
+      SELECT id FROM dump_recipients WHERE dump_id = ${dumpId} AND user_id = ${userId}
+    `;
+    if (existing.length > 0) {
+      return { success: true, alreadyClaimed: true };
+    }
+
+    // Get user email
+    const user = await this.getUserById(userId);
+    if (!user) return { success: false };
+
+    // Create recipient record for this user
+    const { v4: uuid } = await import("uuid");
+    await sql`
+      INSERT INTO dump_recipients (id, dump_id, email, token, user_id)
+      VALUES (${uuid()}, ${dumpId}, ${user.email}, ${uuid()}::uuid, ${userId})
+    `;
+
+    return { success: true };
   },
 
   // Dump Memes
@@ -248,16 +334,25 @@ export const db = {
   // Dump Recipients
   async getRecipientByToken(token: string): Promise<DumpRecipient | undefined> {
     const { rows } = await sql<DumpRecipient>`
-      SELECT id, dump_id, email, token::text, viewed_at::text, view_count, recipient_note, created_at::text
+      SELECT id, dump_id, name, email, token::text, claim_code, user_id, claimed_at::text, viewed_at::text, view_count, recipient_note, created_at::text
       FROM dump_recipients
       WHERE token = ${token}::uuid
     `;
     return rows[0];
   },
 
+  async getRecipientByClaimCode(claimCode: string): Promise<DumpRecipient | undefined> {
+    const { rows } = await sql<DumpRecipient>`
+      SELECT id, dump_id, name, email, token::text, claim_code, user_id, claimed_at::text, viewed_at::text, view_count, recipient_note, created_at::text
+      FROM dump_recipients
+      WHERE UPPER(claim_code) = UPPER(${claimCode})
+    `;
+    return rows[0];
+  },
+
   async getRecipientsByDump(dumpId: string): Promise<DumpRecipient[]> {
     const { rows } = await sql<DumpRecipient>`
-      SELECT id, dump_id, email, token::text, viewed_at::text, view_count, recipient_note, created_at::text
+      SELECT id, dump_id, name, email, token::text, claim_code, user_id, claimed_at::text, viewed_at::text, view_count, recipient_note, created_at::text
       FROM dump_recipients
       WHERE dump_id = ${dumpId}
     `;
@@ -266,18 +361,33 @@ export const db = {
 
   async getRecipientById(id: string): Promise<DumpRecipient | undefined> {
     const { rows } = await sql<DumpRecipient>`
-      SELECT id, dump_id, email, token::text, viewed_at::text, view_count, recipient_note, created_at::text
+      SELECT id, dump_id, name, email, token::text, claim_code, user_id, claimed_at::text, viewed_at::text, view_count, recipient_note, created_at::text
       FROM dump_recipients
       WHERE id = ${id}
     `;
     return rows[0];
   },
 
-  async createRecipient(recipient: { id: string; dump_id: string; email: string; token: string }): Promise<void> {
+  async createRecipient(recipient: { id: string; dump_id: string; name: string; email?: string; token: string; claim_code: string }): Promise<void> {
     await sql`
-      INSERT INTO dump_recipients (id, dump_id, email, token)
-      VALUES (${recipient.id}, ${recipient.dump_id}, ${recipient.email}, ${recipient.token}::uuid)
+      INSERT INTO dump_recipients (id, dump_id, name, email, token, claim_code)
+      VALUES (${recipient.id}, ${recipient.dump_id}, ${recipient.name}, ${recipient.email || null}, ${recipient.token}::uuid, ${recipient.claim_code})
     `;
+  },
+
+  async claimRecipientByCode(claimCode: string, userId: string): Promise<DumpRecipient | null> {
+    const recipient = await this.getRecipientByClaimCode(claimCode);
+    if (!recipient) return null;
+    if (recipient.claimed_at) return null; // Already claimed
+
+    await sql`
+      UPDATE dump_recipients
+      SET user_id = ${userId}, claimed_at = NOW()
+      WHERE id = ${recipient.id}
+    `;
+
+    const updated = await this.getRecipientById(recipient.id);
+    return updated ?? null;
   },
 
   async markRecipientViewed(id: string): Promise<void> {
@@ -676,7 +786,7 @@ export const db = {
       LIMIT ${limit}
     `;
 
-    return rows.map((row) => ({
+    const sentActivity = rows.map((row) => ({
       id: row.id,
       type: row.type as "view" | "reaction" | "note" | "sent",
       timestamp: row.timestamp,
@@ -690,6 +800,55 @@ export const db = {
       memeCount: row.meme_count ? parseInt(row.meme_count) : undefined,
       recipientCount: row.recipient_count ? parseInt(row.recipient_count) : undefined,
     }));
+
+    // Get received dumps (where user is a recipient)
+    const { rows: receivedRows } = await sql<{
+      id: string;
+      dump_id: string;
+      dump_note: string | null;
+      sender_email: string;
+      first_meme_url: string;
+      meme_count: string;
+      created_at: string;
+    }>`
+      SELECT
+        dr.id::text || '-received' as id,
+        d.id::text as dump_id,
+        d.note as dump_note,
+        u.email as sender_email,
+        (
+          SELECT m.file_url FROM dump_memes dm
+          JOIN memes m ON m.id = dm.meme_id
+          WHERE dm.dump_id = d.id
+          ORDER BY dm.sort_order LIMIT 1
+        ) as first_meme_url,
+        (SELECT COUNT(*) FROM dump_memes WHERE dump_id = d.id)::text as meme_count,
+        dr.created_at::text
+      FROM dump_recipients dr
+      JOIN dumps d ON dr.dump_id = d.id
+      JOIN users u ON d.sender_id = u.id
+      WHERE dr.user_id = ${userId}
+      ORDER BY dr.created_at DESC
+      LIMIT ${limit}
+    `;
+
+    const receivedActivity: ActivityItem[] = receivedRows.map((row) => ({
+      id: row.id,
+      type: "received" as const,
+      timestamp: row.created_at,
+      recipientEmail: "",
+      dumpId: row.dump_id,
+      dumpNote: row.dump_note,
+      firstMemeUrl: row.first_meme_url,
+      memeCount: parseInt(row.meme_count),
+      senderEmail: row.sender_email,
+    }));
+
+    // Merge and sort by timestamp
+    const allActivity = [...sentActivity, ...receivedActivity];
+    allActivity.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+    return allActivity.slice(0, limit);
   },
 };
 

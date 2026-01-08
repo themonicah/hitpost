@@ -41,6 +41,7 @@ export async function GET(
         note: dump.note,
         created_at: dump.created_at,
         is_draft: dump.is_draft || false,
+        share_token: dump.share_token || null,
         memes: memes.map((m) => ({
           id: m.id,
           file_url: m.file_url,

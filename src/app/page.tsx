@@ -1,15 +1,15 @@
 import { getSession } from "@/lib/auth";
-import LoginForm from "@/components/LoginForm";
 import Header from "@/components/Header";
 import HomeContent from "./HomeContent";
 import AppShell from "@/components/AppShell";
+import AutoLogin from "@/components/AutoLogin";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
   const user = await getSession();
 
-  // Show login page if not authenticated
+  // Auto-login with device ID if not authenticated
   if (!user) {
     return (
       <AppShell>
@@ -22,11 +22,7 @@ export default async function Home() {
               </p>
             </div>
 
-            <LoginForm />
-
-            <p className="text-center text-sm text-gray-400">
-              No password needed - just your email
-            </p>
+            <AutoLogin />
           </div>
         </main>
       </AppShell>

@@ -13,13 +13,8 @@ interface DumpDetail {
   note: string | null;
   created_at: string;
   is_draft: boolean;
+  share_token: string | null;
   memes: DumpMeme[];
-}
-
-interface Group {
-  id: string;
-  name: string;
-  members: { id: string; name: string; email: string }[];
 }
 
 interface LibraryMeme {
@@ -37,33 +32,26 @@ interface DumpDrawerProps {
 export default function DumpDrawer({ dumpId, onClose, onUpdate }: DumpDrawerProps) {
   const [dump, setDump] = useState<DumpDetail | null>(null);
   const [loading, setLoading] = useState(false);
-  const [sending, setSending] = useState(false);
-  const [groups, setGroups] = useState<Group[]>([]);
-  const [selectedGroupIds, setSelectedGroupIds] = useState<Set<string>>(new Set());
-  const [manualEmails, setManualEmails] = useState("");
-  const [error, setError] = useState("");
   const [name, setName] = useState("");
   const [editingName, setEditingName] = useState(false);
   const [showMemePicker, setShowMemePicker] = useState(false);
   const [libraryMemes, setLibraryMemes] = useState<LibraryMeme[]>([]);
+  const [copied, setCopied] = useState(false);
+  const [generatingLink, setGeneratingLink] = useState(false);
 
   useEffect(() => {
     if (dumpId) {
       setLoading(true);
-      setSelectedGroupIds(new Set());
-      setManualEmails("");
-      setError("");
       setShowMemePicker(false);
       setEditingName(false);
+      setCopied(false);
 
       Promise.all([
         fetch(`/api/dumps/${dumpId}`).then(r => r.json()),
-        fetch("/api/groups").then(r => r.json()),
         fetch("/api/memes").then(r => r.json()),
       ])
-        .then(([dumpData, groupsData, memesData]) => {
+        .then(([dumpData, memesData]) => {
           setDump(dumpData.dump);
-          setGroups(groupsData.groups || []);
           setLibraryMemes(memesData.memes || []);
           setName(dumpData.dump?.note || "");
         })
@@ -79,16 +67,6 @@ export default function DumpDrawer({ dumpId, onClose, onUpdate }: DumpDrawerProp
     else document.body.style.overflow = "";
     return () => { document.body.style.overflow = ""; };
   }, [dumpId]);
-
-  function getUniqueRecipients(): string[] {
-    const emails = new Set<string>();
-    for (const groupId of selectedGroupIds) {
-      const group = groups.find(g => g.id === groupId);
-      if (group) group.members.forEach(m => emails.add(m.email.toLowerCase()));
-    }
-    manualEmails.split(/[,\n]/).map(e => e.trim().toLowerCase()).filter(e => e.includes("@")).forEach(e => emails.add(e));
-    return Array.from(emails);
-  }
 
   async function handleSaveName() {
     if (!dumpId || name === dump?.note) {
@@ -107,37 +85,6 @@ export default function DumpDrawer({ dumpId, onClose, onUpdate }: DumpDrawerProp
       console.error(err);
     }
     setEditingName(false);
-  }
-
-  async function handleSendDump() {
-    const recipients = getUniqueRecipients();
-    if (recipients.length === 0) { setError("Add at least one person"); return; }
-    if (!dump || dump.memes.length === 0) { setError("Add at least one meme"); return; }
-
-    setSending(true);
-    setError("");
-    try {
-      // Save name if changed
-      if (name !== dump.note) {
-        await fetch(`/api/dumps/${dumpId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ note: name || null }),
-        });
-      }
-      const res = await fetch(`/api/dumps/${dumpId}/send`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ recipients }),
-      });
-      if (!res.ok) throw new Error("Failed to send");
-      onUpdate?.();
-      onClose();
-    } catch (err) {
-      setError("Something went wrong");
-    } finally {
-      setSending(false);
-    }
   }
 
   async function handleRemoveMeme(memeId: string) {
@@ -166,11 +113,85 @@ export default function DumpDrawer({ dumpId, onClose, onUpdate }: DumpDrawerProp
     }
   }
 
+  async function generateShareLink() {
+    if (!dumpId || !dump) return;
+
+    setGeneratingLink(true);
+    try {
+      // Save name first if changed
+      if (name !== dump.note) {
+        await fetch(`/api/dumps/${dumpId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ note: name || null }),
+        });
+      }
+
+      const res = await fetch(`/api/dumps/${dumpId}/share`, {
+        method: "POST",
+      });
+      const data = await res.json();
+
+      if (data.shareToken) {
+        setDump(prev => prev ? { ...prev, share_token: data.shareToken, is_draft: false } : null);
+        onUpdate?.();
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setGeneratingLink(false);
+    }
+  }
+
+  async function copyLink() {
+    if (!dump?.share_token) return;
+
+    const link = `${window.location.origin}/d/${dump.share_token}`;
+
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      // Fallback for older browsers
+      const textArea = document.createElement("textarea");
+      textArea.value = link;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textArea);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  }
+
+  async function handleShare() {
+    if (!dump?.share_token) return;
+
+    const link = `${window.location.origin}/d/${dump.share_token}`;
+    const title = dump.note || "Meme Dump";
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `${title} - HitPost`,
+          text: "Check out this meme dump!",
+          url: link,
+        });
+      } catch (err) {
+        // User cancelled or share failed, copy instead
+        copyLink();
+      }
+    } else {
+      copyLink();
+    }
+  }
+
   if (!dumpId) return null;
 
-  const recipientCount = getUniqueRecipients().length;
   const dumpMemeIds = new Set(dump?.memes.map(m => m.id) || []);
   const availableMemes = libraryMemes.filter(m => !dumpMemeIds.has(m.id));
+  const shareLink = dump?.share_token ? `${typeof window !== 'undefined' ? window.location.origin : ''}/d/${dump.share_token}` : null;
 
   // 3x3 grid slots
   const gridSlots = Array(9).fill(null).map((_, i) => dump?.memes[i] || null);
@@ -179,15 +200,29 @@ export default function DumpDrawer({ dumpId, onClose, onUpdate }: DumpDrawerProp
     <div className="fixed inset-0 z-[60] bg-black">
       {/* Header */}
       <div className="flex items-center justify-between px-4 pt-14 pb-2">
-        <button onClick={onClose} className="text-white/70 text-base font-medium">Cancel</button>
+        <button onClick={onClose} className="text-white/70 text-base font-medium">Done</button>
         <div className="flex-1" />
-        <button
-          onClick={handleSendDump}
-          disabled={sending || !dump || dump.memes.length === 0 || recipientCount === 0}
-          className="px-4 py-1.5 bg-gradient-to-r from-amber-400 to-orange-500 disabled:opacity-40 text-black font-bold text-sm rounded-full"
-        >
-          {sending ? "..." : "Send"}
-        </button>
+        {dump && dump.memes.length > 0 && (
+          dump.share_token ? (
+            <button
+              onClick={handleShare}
+              className="px-4 py-1.5 bg-gradient-to-r from-amber-400 to-orange-500 text-black font-bold text-sm rounded-full flex items-center gap-1.5"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+              </svg>
+              Share
+            </button>
+          ) : (
+            <button
+              onClick={generateShareLink}
+              disabled={generatingLink}
+              className="px-4 py-1.5 bg-gradient-to-r from-amber-400 to-orange-500 disabled:opacity-50 text-black font-bold text-sm rounded-full"
+            >
+              {generatingLink ? "..." : "Get Link"}
+            </button>
+          )
+        )}
       </div>
 
       {loading ? (
@@ -232,7 +267,7 @@ export default function DumpDrawer({ dumpId, onClose, onUpdate }: DumpDrawerProp
           </div>
 
           {/* Title - inline editable */}
-          <div className="mb-3">
+          <div className="mb-4">
             {editingName ? (
               <input
                 type="text"
@@ -255,44 +290,42 @@ export default function DumpDrawer({ dumpId, onClose, onUpdate }: DumpDrawerProp
             )}
           </div>
 
-          {/* Send to - compact */}
-          <div className="bg-white/5 rounded-xl p-3 mb-3">
-            <p className="text-white/40 text-xs font-medium uppercase tracking-wider mb-2">Send to</p>
+          {/* Share Link Section */}
+          {shareLink ? (
+            <div className="bg-white/5 rounded-xl p-4 mb-4">
+              <p className="text-white/40 text-xs font-medium uppercase tracking-wider mb-2">Share Link</p>
 
-            <div className="flex flex-wrap gap-2 mb-2">
-              {groups.map(group => (
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={shareLink}
+                  readOnly
+                  className="flex-1 bg-white/10 text-white/70 px-3 py-2 rounded-lg text-sm font-mono truncate"
+                />
                 <button
-                  key={group.id}
-                  onClick={() => setSelectedGroupIds(prev => {
-                    const next = new Set(prev);
-                    next.has(group.id) ? next.delete(group.id) : next.add(group.id);
-                    return next;
-                  })}
-                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
-                    selectedGroupIds.has(group.id)
-                      ? "bg-blue-500 text-white"
-                      : "bg-white/10 text-white/70"
+                  onClick={copyLink}
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    copied
+                      ? "bg-green-500 text-white"
+                      : "bg-white/10 text-white hover:bg-white/20"
                   }`}
                 >
-                  {group.name} ({group.members.length})
+                  {copied ? "Copied!" : "Copy"}
                 </button>
-              ))}
+              </div>
+
+              <p className="text-white/40 text-xs mt-3">
+                Anyone with this link can view your memes
+              </p>
             </div>
-
-            <input
-              type="text"
-              value={manualEmails}
-              onChange={e => setManualEmails(e.target.value)}
-              placeholder="or type emails..."
-              className="w-full bg-white/5 text-white placeholder-white/30 px-3 py-2 rounded-lg border-0 focus:outline-none text-sm"
-            />
-
-            {recipientCount > 0 && (
-              <p className="text-blue-400 text-xs mt-2">{recipientCount} people</p>
-            )}
-          </div>
-
-          {error && <p className="text-red-400 text-center text-sm mb-3">{error}</p>}
+          ) : (
+            <div className="bg-white/5 rounded-xl p-4 mb-4">
+              <p className="text-white/40 text-xs font-medium uppercase tracking-wider mb-2">Share</p>
+              <p className="text-white/60 text-sm">
+                Tap "Get Link" to create a shareable link for this dump
+              </p>
+            </div>
+          )}
 
           {/* Add more memes link */}
           <button

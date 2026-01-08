@@ -14,29 +14,45 @@ export async function getSession(): Promise<User | null> {
   return user || null;
 }
 
-export async function createSession(email: string): Promise<User> {
+// Create session from email (legacy, for when user adds email later)
+export async function createSessionFromEmail(email: string): Promise<User> {
   const cookieStore = await cookies();
 
-  // Check if user exists
   let user = await db.getUserByEmail(email);
 
   if (!user) {
-    // Create new user
-    const newUser = {
+    const newUser: User = {
       id: uuid(),
       email,
+      device_id: null,
       created_at: new Date().toISOString(),
     };
     await db.createUser(newUser);
     user = newUser;
   }
 
-  // Set session cookie
   cookieStore.set(SESSION_COOKIE, user.id, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    maxAge: 60 * 60 * 24 * 30, // 30 days
+    maxAge: 60 * 60 * 24 * 365, // 1 year
+    path: "/",
+  });
+
+  return user;
+}
+
+// Create session from device ID (primary method - no email required)
+export async function createSessionFromDeviceId(deviceId: string): Promise<User> {
+  const cookieStore = await cookies();
+
+  const user = await db.getOrCreateUserByDeviceId(deviceId);
+
+  cookieStore.set(SESSION_COOKIE, user.id, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 60 * 60 * 24 * 365, // 1 year
     path: "/",
   });
 

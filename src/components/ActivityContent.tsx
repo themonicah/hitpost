@@ -60,17 +60,32 @@ function getEmailName(email: string): string {
 }
 
 function ActivityCard({ item, onTap }: { item: ActivityItem; onTap: () => void }) {
-  const name = item.recipientEmail ? getEmailName(item.recipientEmail) : "You";
+  const name = item.type === "received" && item.senderEmail
+    ? getEmailName(item.senderEmail)
+    : item.recipientEmail
+      ? getEmailName(item.recipientEmail)
+      : "You";
   const time = getRelativeTime(item.timestamp);
 
   return (
     <button
       onClick={onTap}
-      className="w-full text-left bg-white dark:bg-gray-900 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all duration-200 hover:scale-[1.01] active:scale-[0.99]"
+      className={`w-full text-left rounded-2xl p-4 shadow-sm hover:shadow-md transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] ${
+        item.type === "received"
+          ? "bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border border-amber-200 dark:border-amber-800"
+          : "bg-white dark:bg-gray-900"
+      }`}
     >
       <div className="flex gap-3">
         {/* Icon/indicator */}
         <div className="flex-shrink-0">
+          {item.type === "received" && (
+            <div className="w-10 h-10 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 flex items-center justify-center">
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+              </svg>
+            </div>
+          )}
           {item.type === "view" && (
             <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
               <div className="w-3 h-3 rounded-full bg-green-500" />
@@ -103,6 +118,11 @@ function ActivityCard({ item, onTap }: { item: ActivityItem; onTap: () => void }
             <div>
               <p className="text-sm">
                 <span className="font-medium text-gray-900 dark:text-white">{name}</span>
+                {item.type === "received" && (
+                  <span className="text-gray-600 dark:text-gray-400">
+                    {" "}sent you {item.memeCount} meme{item.memeCount !== 1 ? "s" : ""}
+                  </span>
+                )}
                 {item.type === "view" && (
                   <span className="text-gray-600 dark:text-gray-400"> viewed your dump</span>
                 )}

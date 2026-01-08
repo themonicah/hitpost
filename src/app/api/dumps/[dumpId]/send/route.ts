@@ -1,7 +1,12 @@
 import { getSession } from "@/lib/auth";
-import db from "@/lib/db";
+import db, { generateClaimCode } from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
 import { v4 as uuid } from "uuid";
+
+interface RecipientInput {
+  name: string;
+  email?: string;
+}
 
 export async function POST(
   req: NextRequest,
@@ -42,33 +47,35 @@ export async function POST(
     const requestUrl = new URL(req.url);
     const baseUrl = `${requestUrl.protocol}//${requestUrl.host}`;
 
-    for (const email of recipients) {
+    const createdRecipients: { name: string; link: string; claimCode: string }[] = [];
+
+    for (const recipient of recipients as RecipientInput[]) {
+      const name = typeof recipient === "string" ? recipient : recipient.name;
+      const email = typeof recipient === "string" ? undefined : recipient.email;
+
       const recipientId = uuid();
       const token = uuid();
+      const claimCode = generateClaimCode();
 
       await db.createRecipient({
         id: recipientId,
         dump_id: dumpId,
+        name,
         email,
         token,
+        claim_code: claimCode,
       });
 
       const link = `${baseUrl}/view/${token}`;
-      const subject = `${user.email} sent you a HitPost`;
-      const body = `You received a meme dump!\n\nClick here to view: ${link}`;
+      createdRecipients.push({ name, link, claimCode });
 
-      await db.createEmail({
-        id: uuid(),
-        to_email: email,
-        subject,
-        body,
-        link,
-      });
-
-      console.log(`EMAIL SENT to ${email}: ${link}`);
+      console.log(`RECIPIENT CREATED: ${name} - ${link} - Code: ${claimCode}`);
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({
+      success: true,
+      recipients: createdRecipients,
+    });
   } catch (error) {
     console.error("Send dump error:", error);
     return NextResponse.json({ error: "Failed to send dump" }, { status: 500 });

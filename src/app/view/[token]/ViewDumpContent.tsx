@@ -8,7 +8,7 @@ interface ViewDumpContentProps {
   dump: Dump & { sender_email: string };
   memes: Meme[];
   recipientId: string;
-  recipientEmail: string;
+  recipientName: string;
   recipientNote: string | null;
   existingReactions: Record<string, string>;
 }
@@ -19,7 +19,7 @@ export default function ViewDumpContent({
   dump,
   memes,
   recipientId,
-  recipientEmail,
+  recipientName,
   recipientNote,
   existingReactions,
 }: ViewDumpContentProps) {

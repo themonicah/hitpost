@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
 interface NavProps {
-  email: string;
+  email: string | null;
 }
 
 export default function Nav({ email }: NavProps) {
@@ -50,7 +50,7 @@ export default function Nav({ email }: NavProps) {
         </div>
 
         <div className="flex items-center justify-between py-2 text-sm text-gray-500 border-t border-gray-100 dark:border-gray-800">
-          <span>{email}</span>
+          <span>{email || "Guest"}</span>
           <button
             onClick={handleLogout}
             className="text-red-500 hover:text-red-600"

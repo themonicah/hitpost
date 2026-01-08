@@ -47,7 +47,7 @@ export default async function ViewPage({ params }: ViewPageProps) {
       dump={{ ...dump, sender_email: senderEmail }}
       memes={memes}
       recipientId={recipient.id}
-      recipientEmail={recipient.email}
+      recipientName={recipient.name}
       recipientNote={recipient.recipient_note}
       existingReactions={reactionsMap}
     />
