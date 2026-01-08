@@ -3,9 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Meme } from "@/lib/db";
 import MemeGrid from "@/components/MemeGrid";
-import MemeUploader from "@/components/MemeUploader";
 import MemeViewer from "@/components/MemeViewer";
-import EmptyState from "@/components/EmptyState";
 import FunLoader from "@/components/FunLoader";
 import DumpsBar, { DumpsBarRef } from "@/components/DumpsBar";
 import DumpDrawer from "@/components/DumpDrawer";
@@ -23,7 +21,9 @@ export default function HomeContent({ userId }: HomeContentProps) {
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const [selectedDumpId, setSelectedDumpId] = useState<string | null>(null);
   const [showDumpCreator, setShowDumpCreator] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const dumpsBarRef = useRef<DumpsBarRef>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchMemes = useCallback(async () => {
     try {
@@ -43,6 +43,22 @@ export default function HomeContent({ userId }: HomeContentProps) {
 
   function handleDelete(id: string) {
     setMemes((prev) => prev.filter((m) => m.id !== id));
+  }
+
+  async function handleUpload(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      for (let i = 0; i < files.length; i++) {
+        formData.append("files", files[i]);
+      }
+      const res = await fetch("/api/memes", { method: "POST", body: formData });
+      if (res.ok) fetchMemes();
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
   }
 
   function toggleSelectMode() {
@@ -66,14 +82,22 @@ export default function HomeContent({ userId }: HomeContentProps) {
   const selectedMemes = memes.filter((m) => selectedIds.has(m.id));
 
   return (
-    <div className="space-y-4">
-      {/* Upload area - compact when library has memes */}
-      <MemeUploader onUpload={fetchMemes} compact={memes.length > 0} />
+    <div className="space-y-3">
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*,video/*"
+        multiple
+        onChange={(e) => handleUpload(e.target.files)}
+        className="hidden"
+      />
 
-      {/* Meme count and actions */}
+      {/* Header with count and actions */}
       <div className="flex items-center justify-between">
         <p className="text-sm text-gray-500">
           {memes.length} meme{memes.length !== 1 ? "s" : ""}
+          {uploading && <span className="ml-2 text-blue-500">uploading...</span>}
         </p>
         <div className="flex items-center gap-2">
           {selectMode && selectedIds.size > 0 && (
@@ -97,23 +121,16 @@ export default function HomeContent({ userId }: HomeContentProps) {
         </div>
       </div>
 
-      {/* Empty state */}
-      {memes.length === 0 ? (
-        <EmptyState
-          type="memes"
-          title="No memes yet"
-          description="Upload your favorite memes to build your collection and share them with friends"
-        />
-      ) : (
-        <MemeGrid
-          memes={memes}
-          selectable={selectMode}
-          selectedIds={selectedIds}
-          onSelectionChange={setSelectedIds}
-          onDelete={selectMode ? undefined : handleDelete}
-          onMemeClick={selectMode ? undefined : (index) => setViewerIndex(index)}
-        />
-      )}
+      {/* Meme Grid with integrated add button */}
+      <MemeGrid
+        memes={memes}
+        selectable={selectMode}
+        selectedIds={selectedIds}
+        onSelectionChange={setSelectedIds}
+        onDelete={selectMode ? undefined : handleDelete}
+        onMemeClick={selectMode ? undefined : (index) => setViewerIndex(index)}
+        onAddClick={() => fileInputRef.current?.click()}
+      />
 
       {/* Meme Viewer */}
       {viewerIndex !== null && (

@@ -11,6 +11,7 @@ interface MemeGridProps {
   onDelete?: (id: string) => void;
   onMemeClick?: (index: number) => void;
   maxSelections?: number;
+  onAddClick?: () => void;
 }
 
 export default function MemeGrid({
@@ -21,6 +22,7 @@ export default function MemeGrid({
   onDelete,
   onMemeClick,
   maxSelections = 50,
+  onAddClick,
 }: MemeGridProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [heartId, setHeartId] = useState<string | null>(null);
@@ -71,16 +73,17 @@ export default function MemeGrid({
     }
   }
 
-  if (memes.length === 0) {
-    return (
-      <div className="text-center py-12 text-gray-500">
-        <p>No memes yet. Upload some!</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="grid grid-cols-3 gap-0.5">
+    <div className="grid grid-cols-4 gap-1">
+      {/* Add button as first item */}
+      {onAddClick && (
+        <button
+          onClick={onAddClick}
+          className="aspect-square rounded-xl bg-white/10 dark:bg-white/5 border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center transition-all active:scale-95 hover:border-gray-400 dark:hover:border-gray-600"
+        >
+          <span className="text-2xl text-gray-400">+</span>
+        </button>
+      )}
       {memes.map((meme, index) => {
         const isSelected = selectedIds.has(meme.id);
         const isDeleting = deletingId === meme.id;
@@ -91,9 +94,9 @@ export default function MemeGrid({
         return (
           <div
             key={meme.id}
-            className={`relative aspect-square overflow-hidden bg-gray-100 dark:bg-gray-800 transition-all duration-150 ${
+            className={`relative aspect-square overflow-hidden rounded-xl bg-gray-100 dark:bg-gray-800 transition-all duration-150 ${
               selectable || onMemeClick ? "cursor-pointer" : ""
-            } ${isSelected ? "opacity-60" : ""} ${
+            } ${isSelected ? "ring-2 ring-blue-500 ring-offset-1 ring-offset-black" : ""} ${
               isDeleting ? "opacity-50" : ""
             } ${isShaking ? "animate-shake" : ""}`}
             onClick={() => {
