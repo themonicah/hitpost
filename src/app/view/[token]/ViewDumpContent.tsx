@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dump, Meme } from "@/lib/db";
+import Image from "next/image";
 
 interface ViewDumpContentProps {
   dump: Dump & { sender_email: string };
@@ -34,9 +35,22 @@ export default function ViewDumpContent({
   const [note, setNote] = useState(recipientNote || "");
   const [noteSaved, setNoteSaved] = useState(!!recipientNote);
   const [saving, setSaving] = useState(false);
+  const [showConnectModal, setShowConnectModal] = useState(false);
+  const [hasSeenModal, setHasSeenModal] = useState(false);
 
   const senderName = dump.sender_email.split("@")[0];
   const currentMeme = memes[currentIndex];
+
+  // Show connect modal after viewing all memes (first time only)
+  useEffect(() => {
+    if (view === "grid" && !hasSeenModal && !isClaimed && claimCode) {
+      const timer = setTimeout(() => {
+        setShowConnectModal(true);
+        setHasSeenModal(true);
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [view, hasSeenModal, isClaimed, claimCode]);
 
   async function handleReaction(memeId: string, emoji: string) {
     const currentEmoji = reactions[memeId];
@@ -87,127 +101,159 @@ export default function ViewDumpContent({
     }
   }
 
-  // COVER SHEET VIEW
+  // Connect Modal - focused on connecting with sender
+  function ConnectModal() {
+    if (!showConnectModal) return null;
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-6 animate-fadeIn">
+        <div
+          className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+          onClick={() => setShowConnectModal(false)}
+        />
+        <div className="relative w-full max-w-sm bg-white rounded-3xl shadow-2xl p-6 animate-scaleIn">
+          {/* Illustration */}
+          <div className="flex justify-center mb-4">
+            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-sunny to-peachy flex items-center justify-center">
+              <span className="text-4xl">📬</span>
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="text-center mb-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-2">
+              Stay connected with {senderName}
+            </h2>
+            <p className="text-gray-500 text-sm">
+              Get the app so you never miss their meme drops. {senderName} can send you dumps directly.
+            </p>
+          </div>
+
+          {/* Code display */}
+          {claimCode && (
+            <div className="bg-gray-50 rounded-2xl p-4 mb-4">
+              <p className="text-xs text-gray-400 text-center mb-2">Your connection code</p>
+              <p className="text-2xl font-mono font-bold text-center tracking-widest text-gray-900">
+                {claimCode}
+              </p>
+            </div>
+          )}
+
+          {/* CTA */}
+          <a
+            href="https://apps.apple.com/app/hitpost"
+            className="block w-full py-4 bg-gray-900 hover:bg-gray-800 text-white font-semibold text-center rounded-2xl transition-colors mb-3"
+          >
+            Get HitPost
+          </a>
+
+          <button
+            onClick={() => setShowConnectModal(false)}
+            className="w-full py-3 text-gray-400 font-medium text-sm"
+          >
+            Maybe later
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // COVER SHEET VIEW - Clean white
   if (view === "cover") {
     return (
-      <div className="min-h-screen bg-black flex flex-col">
-        {/* Background blur effect */}
-        <div className="absolute inset-0 overflow-hidden">
-          {memes[0] && (
-            <img
-              src={memes[0].file_url}
-              alt=""
-              className="w-full h-full object-cover opacity-20 blur-3xl scale-110"
-            />
-          )}
-        </div>
+      <div className="min-h-screen bg-white flex flex-col">
+        <ConnectModal />
 
         {/* Content */}
-        <div className="relative flex-1 flex flex-col items-center justify-center px-6">
+        <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
+          {/* Sender avatar */}
+          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-electric to-lavender flex items-center justify-center mb-4">
+            <span className="text-2xl font-bold text-white">
+              {senderName.charAt(0).toUpperCase()}
+            </span>
+          </div>
+
+          {/* Sender info */}
+          <p className="text-gray-500 text-sm mb-1">
+            {senderName} sent you
+          </p>
+          <h1 className="text-gray-900 text-2xl font-bold text-center mb-6">
+            {dump.note || "a meme dump"}
+          </h1>
+
           {/* Preview thumbnails */}
           <div className="flex gap-2 mb-8">
             {memes.slice(0, 3).map((meme, i) => (
               <div
                 key={meme.id}
-                className="w-20 h-20 rounded-xl overflow-hidden bg-white/10 shadow-lg"
-                style={{ transform: `rotate(${(i - 1) * 5}deg)` }}
+                className="w-24 h-24 rounded-2xl overflow-hidden bg-gray-100 shadow-lg"
+                style={{ transform: `rotate(${(i - 1) * 4}deg)` }}
               >
                 {meme.file_type === "video" ? (
-                  <video src={meme.file_url} className="w-full h-full object-cover" muted playsInline aria-hidden="true" />
+                  <video src={meme.file_url} className="w-full h-full object-cover" muted playsInline />
                 ) : (
-                  <img src={meme.file_url} alt="Meme preview thumbnail" className="w-full h-full object-cover" />
+                  <img src={meme.file_url} alt="" className="w-full h-full object-cover" />
                 )}
               </div>
             ))}
           </div>
 
-          {/* Info */}
-          <p className="text-white/60 text-sm mb-2">
-            {senderName} sent you
-          </p>
-          <h1 className="text-white text-3xl font-bold text-center mb-2">
-            {dump.note || "a meme dump"}
-          </h1>
-          <p className="text-white/40 text-lg mb-8">
+          <p className="text-gray-400 text-sm mb-8">
             {memes.length} meme{memes.length !== 1 ? "s" : ""}
           </p>
 
           {/* CTA */}
           <button
             onClick={() => setView("slideshow")}
-            aria-label={`View ${memes.length} memes from ${senderName}`}
-            className="w-full max-w-xs py-4 bg-sunny hover:bg-sunny-dark text-gray-900 font-bold text-lg rounded-2xl shadow-lg shadow-sunny/30 active:scale-95 transition-all min-h-[56px]"
+            className="w-full max-w-xs py-4 bg-gray-900 hover:bg-gray-800 text-white font-bold text-lg rounded-2xl shadow-lg active:scale-95 transition-all"
           >
-            See Memes
+            View Memes
           </button>
         </div>
-
-        {/* App upsell */}
-        {!isClaimed && claimCode && (
-          <div className="relative px-6 pb-8 pt-4">
-            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 text-center">
-              <p className="text-white/60 text-sm mb-2">
-                Get HitPost to save memes & send your own dumps
-              </p>
-              <div className="flex items-center justify-center gap-3">
-                <span className="text-white/40 text-sm">Your code:</span>
-                <span className="text-white font-mono text-xl font-bold tracking-wider">
-                  {claimCode}
-                </span>
-              </div>
-              <a
-                href="https://apps.apple.com/app/hitpost"
-                className="inline-block mt-3 text-blue-400 text-sm font-medium"
-              >
-                Download on App Store
-              </a>
-            </div>
-          </div>
-        )}
       </div>
     );
   }
 
-  // SLIDESHOW VIEW
+  // SLIDESHOW VIEW - Clean white
   if (view === "slideshow") {
     return (
-      <div className="min-h-screen bg-black flex flex-col">
+      <div className="min-h-screen bg-white flex flex-col">
+        <ConnectModal />
+
         {/* Header */}
-        <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-4 pt-14 pb-4">
+        <div className="flex items-center justify-between px-4 pt-14 pb-4">
           <button
             onClick={() => setView("grid")}
-            aria-label="View all memes in grid"
-            className="text-white/70 text-sm font-medium flex items-center gap-1 min-h-[44px] px-2"
+            className="text-gray-500 text-sm font-medium flex items-center gap-1 min-h-[44px] px-2"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
             </svg>
-            Grid
+            All
           </button>
-          <span className="text-white/50 text-sm">
+          <span className="text-gray-400 text-sm font-medium">
             {currentIndex + 1} / {memes.length}
           </span>
           <div className="w-12" />
         </div>
 
         {/* Main content */}
-        <div className="flex-1 flex items-center justify-center">
+        <div className="flex-1 flex items-center justify-center px-4">
           {currentMeme && (
-            <div className="w-full h-full flex items-center justify-center p-4">
+            <div className="w-full max-w-lg">
               {currentMeme.file_type === "video" ? (
                 <video
                   src={currentMeme.file_url}
-                  className="max-w-full max-h-[70vh] rounded-xl"
+                  className="w-full rounded-2xl shadow-lg"
                   controls
                   autoPlay
                   playsInline
-                  aria-label={`Video meme ${currentIndex + 1} of ${memes.length}`}
                 />
               ) : (
                 <img
                   src={currentMeme.file_url}
-                  alt={`Meme ${currentIndex + 1} of ${memes.length}`}
-                  className="max-w-full max-h-[70vh] rounded-xl object-contain"
+                  alt={`Meme ${currentIndex + 1}`}
+                  className="w-full rounded-2xl shadow-lg object-contain"
                 />
               )}
             </div>
@@ -215,18 +261,16 @@ export default function ViewDumpContent({
         </div>
 
         {/* Reaction bar */}
-        <div className="px-4 pb-4" role="group" aria-label="React to this meme">
-          <div className="flex justify-center gap-4 mb-4">
+        <div className="px-4 py-4">
+          <div className="flex justify-center gap-3 mb-4">
             {EMOJIS.map((emoji) => (
               <button
                 key={emoji}
                 onClick={() => handleReaction(currentMeme.id, emoji)}
-                aria-label={`React with ${emoji}${reactions[currentMeme.id] === emoji ? " (selected)" : ""}`}
-                aria-pressed={reactions[currentMeme.id] === emoji}
-                className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl transition-all ${
+                className={`w-14 h-14 rounded-full flex items-center justify-center text-2xl transition-all ${
                   reactions[currentMeme.id] === emoji
-                    ? "bg-white/30 scale-110"
-                    : "bg-white/10"
+                    ? "bg-sunny scale-110 shadow-md"
+                    : "bg-gray-100 hover:bg-gray-200"
                 }`}
               >
                 {emoji}
@@ -240,8 +284,7 @@ export default function ViewDumpContent({
           <button
             onClick={() => setCurrentIndex((i) => Math.max(0, i - 1))}
             disabled={currentIndex === 0}
-            aria-label="Previous meme"
-            className="flex-1 py-3 bg-white/10 text-white font-medium rounded-xl disabled:opacity-30 min-h-[48px]"
+            className="flex-1 py-3.5 bg-gray-100 text-gray-700 font-semibold rounded-xl disabled:opacity-30 min-h-[48px]"
           >
             Previous
           </button>
@@ -253,50 +296,37 @@ export default function ViewDumpContent({
                 setView("grid");
               }
             }}
-            aria-label={currentIndex < memes.length - 1 ? "Next meme" : "View all memes"}
-            className="flex-1 py-3 bg-white/20 text-white font-medium rounded-xl min-h-[48px]"
+            className="flex-1 py-3.5 bg-gray-900 text-white font-semibold rounded-xl min-h-[48px]"
           >
-            {currentIndex < memes.length - 1 ? "Next" : "See All"}
+            {currentIndex < memes.length - 1 ? "Next" : "Done"}
           </button>
         </div>
-
-        {/* App upsell banner */}
-        {!isClaimed && claimCode && (
-          <div className="px-4 pb-6">
-            <div className="bg-gradient-to-r from-purple-500/20 to-pink-500/20 backdrop-blur rounded-xl p-3 flex items-center justify-between">
-              <div>
-                <p className="text-white text-sm font-medium">Save to HitPost</p>
-                <p className="text-white/50 text-xs">Code: <span className="font-mono font-bold">{claimCode}</span></p>
-              </div>
-              <a
-                href="https://apps.apple.com/app/hitpost"
-                className="px-4 py-2 bg-white text-black text-sm font-bold rounded-lg"
-              >
-                Get App
-              </a>
-            </div>
-          </div>
-        )}
       </div>
     );
   }
 
-  // GRID VIEW
+  // GRID VIEW - Clean white
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen bg-white">
+      <ConnectModal />
+
       {/* Header */}
-      <div className="sticky top-0 z-20 bg-black/80 backdrop-blur-sm px-4 pt-14 pb-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-white font-bold text-lg">{dump.note || "Meme Dump"}</h1>
-            <p className="text-white/50 text-sm">from {senderName}</p>
+      <div className="sticky top-0 z-20 bg-white/90 backdrop-blur-sm px-4 pt-14 pb-4 border-b border-gray-100">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-electric to-lavender flex items-center justify-center">
+            <span className="text-sm font-bold text-white">
+              {senderName.charAt(0).toUpperCase()}
+            </span>
           </div>
-          <span className="text-white/40 text-sm">{memes.length} memes</span>
+          <div>
+            <h1 className="font-bold text-gray-900">{dump.note || "Meme Dump"}</h1>
+            <p className="text-gray-400 text-sm">from {senderName}</p>
+          </div>
         </div>
       </div>
 
       {/* Grid */}
-      <div className="grid grid-cols-3 gap-0.5 px-0.5">
+      <div className="grid grid-cols-3 gap-1 p-1">
         {memes.map((meme, index) => (
           <button
             key={meme.id}
@@ -304,21 +334,20 @@ export default function ViewDumpContent({
               setCurrentIndex(index);
               setView("slideshow");
             }}
-            aria-label={`View ${meme.file_type === "video" ? "video" : "image"} meme ${index + 1}${reactions[meme.id] ? `, reacted with ${reactions[meme.id]}` : ""}`}
-            className="aspect-square relative bg-white/5"
+            className="aspect-square relative bg-gray-100 rounded-lg overflow-hidden"
           >
             {meme.file_type === "video" ? (
-              <video src={meme.file_url} className="w-full h-full object-cover" muted playsInline aria-hidden="true" />
+              <video src={meme.file_url} className="w-full h-full object-cover" muted playsInline />
             ) : (
               <img src={meme.file_url} alt="" className="w-full h-full object-cover" />
             )}
             {reactions[meme.id] && (
-              <div className="absolute bottom-1 right-1 text-lg">
+              <div className="absolute bottom-1 right-1 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow text-sm">
                 {reactions[meme.id]}
               </div>
             )}
             {meme.file_type === "video" && (
-              <div className="absolute bottom-1 left-1 bg-black/50 text-white text-xs px-1 rounded">
+              <div className="absolute bottom-1 left-1 bg-black/60 text-white text-xs px-1.5 py-0.5 rounded-full">
                 <svg className="w-3 h-3 inline" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M8 5v14l11-7z" />
                 </svg>
@@ -330,9 +359,9 @@ export default function ViewDumpContent({
 
       {/* Leave a note section */}
       <div className="p-4 mt-4">
-        <div className="bg-white/5 rounded-2xl p-4">
-          <label htmlFor="recipient-note" className="text-white font-semibold mb-3 block">
-            Leave a note for {senderName}
+        <div className="bg-gray-50 rounded-2xl p-4">
+          <label htmlFor="recipient-note" className="font-semibold text-gray-900 mb-3 block">
+            Send {senderName} a note
           </label>
           <textarea
             id="recipient-note"
@@ -341,42 +370,41 @@ export default function ViewDumpContent({
               setNote(e.target.value);
               setNoteSaved(false);
             }}
-            placeholder="These are fire! Send more..."
+            placeholder="These are amazing! Send more..."
             maxLength={500}
             rows={3}
-            className="w-full px-3 py-2 bg-white/10 text-white placeholder-white/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-white/30 resize-none mb-3"
+            className="w-full px-4 py-3 bg-white border border-gray-200 text-gray-900 placeholder-gray-400 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent resize-none mb-3"
           />
           <button
             onClick={saveNote}
             disabled={saving || noteSaved || !note.trim()}
-            className="w-full py-3 bg-white text-black font-bold rounded-xl disabled:opacity-30 min-h-[48px]"
+            className="w-full py-3.5 bg-gray-900 text-white font-semibold rounded-xl disabled:bg-gray-200 disabled:text-gray-400 min-h-[48px] transition-colors"
           >
-            {saving ? "Saving..." : noteSaved ? "Saved!" : "Send Note"}
+            {saving ? "Sending..." : noteSaved ? "Sent!" : "Send Note"}
           </button>
         </div>
       </div>
 
-      {/* App upsell - sticky at bottom */}
+      {/* Subtle connect prompt at bottom */}
       {!isClaimed && claimCode && (
-        <div className="sticky bottom-0 p-4 bg-gradient-to-t from-black via-black to-transparent pt-8">
-          <div className="bg-gradient-to-r from-amber-400 to-orange-500 rounded-2xl p-4">
-            <div className="flex items-center justify-between mb-2">
-              <div>
-                <p className="text-black font-bold">Get HitPost</p>
-                <p className="text-black/70 text-sm">Send your own meme dumps</p>
+        <div className="p-4 pb-safe">
+          <button
+            onClick={() => setShowConnectModal(true)}
+            className="w-full p-4 bg-gray-50 hover:bg-gray-100 rounded-2xl transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-sunny to-peachy flex items-center justify-center">
+                <span className="text-lg">📬</span>
               </div>
-              <a
-                href="https://apps.apple.com/app/hitpost"
-                className="px-4 py-2 bg-black text-white text-sm font-bold rounded-lg"
-              >
-                Download
-              </a>
+              <div className="text-left flex-1">
+                <p className="font-semibold text-gray-900">Never miss {senderName}&apos;s drops</p>
+                <p className="text-gray-400 text-sm">Get the app to stay connected</p>
+              </div>
+              <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
             </div>
-            <div className="flex items-center gap-2 pt-2 border-t border-black/10">
-              <span className="text-black/60 text-sm">Enter this code after download:</span>
-              <span className="text-black font-mono text-lg font-bold">{claimCode}</span>
-            </div>
-          </div>
+          </button>
         </div>
       )}
     </div>
