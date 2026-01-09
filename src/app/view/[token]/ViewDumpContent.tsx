@@ -182,12 +182,15 @@ export default function ViewDumpContent({
           </h1>
 
           {/* Preview thumbnails */}
-          <div className="flex gap-2 mb-8">
+          <div className="flex gap-2 mb-12">
             {memes.slice(0, 3).map((meme, i) => (
               <div
                 key={meme.id}
-                className="w-24 h-24 rounded-2xl overflow-hidden bg-gray-100 shadow-lg"
-                style={{ transform: `rotate(${(i - 1) * 4}deg)` }}
+                className="w-24 h-24 rounded-2xl overflow-hidden bg-gray-100 shadow-lg transition-all duration-300 hover:scale-110 hover:-translate-y-2 hover:shadow-xl active:scale-105 active:-translate-y-1 cursor-pointer"
+                style={{
+                  transform: `rotate(${(i - 1) * 4}deg)`,
+                  animationDelay: `${i * 100}ms`,
+                }}
               >
                 {meme.file_type === "video" ? (
                   <video src={meme.file_url} className="w-full h-full object-cover" muted playsInline />
@@ -197,10 +200,6 @@ export default function ViewDumpContent({
               </div>
             ))}
           </div>
-
-          <p className="text-gray-400 text-sm mb-8">
-            {memes.length} meme{memes.length !== 1 ? "s" : ""}
-          </p>
 
           {/* CTA */}
           <button
