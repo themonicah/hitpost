@@ -106,6 +106,16 @@ CREATE TABLE IF NOT EXISTS push_tokens (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- User Connections (for sending dumps to people by name)
+CREATE TABLE IF NOT EXISTS user_connections (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  connector_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name VARCHAR(255) NOT NULL,
+  connected_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  connected_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_memes_user_id ON memes(user_id);
 CREATE INDEX IF NOT EXISTS idx_dumps_sender_id ON dumps(sender_id);
@@ -118,3 +128,4 @@ CREATE INDEX IF NOT EXISTS idx_group_members_group_id ON group_members(group_id)
 CREATE INDEX IF NOT EXISTS idx_collections_user_id ON collections(user_id);
 CREATE INDEX IF NOT EXISTS idx_collection_memes_collection_id ON collection_memes(collection_id);
 CREATE INDEX IF NOT EXISTS idx_push_tokens_user_id ON push_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_connections_connector_id ON user_connections(connector_id);
