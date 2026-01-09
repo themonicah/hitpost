@@ -483,6 +483,37 @@ export default function AddToDumpModal({
     );
   }
 
+  async function handleSaveDraft() {
+    setSaving(true);
+    setError("");
+
+    try {
+      const res = await fetch("/api/dumps", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          memeIds: selectedMemes.map((m) => m.id),
+          note: comment || null,
+          recipients: [],
+          isDraft: true,
+          existingDumpId: selectedDump?.id || null,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to save");
+      }
+
+      onComplete?.();
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   // MAIN VIEW
   return (
     <>
@@ -502,11 +533,11 @@ export default function AddToDumpModal({
             </button>
             <h2 className="font-semibold">Add to Dump</h2>
             <button
-              onClick={() => setView("recipients")}
+              onClick={handleSaveDraft}
               disabled={saving}
               className="text-blue-500 font-semibold min-w-[60px] text-right disabled:text-gray-300"
             >
-              Add
+              {saving ? "..." : "Add"}
             </button>
           </div>
 
@@ -572,6 +603,14 @@ export default function AddToDumpModal({
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
                   </div>
+                </button>
+
+                {/* Send Now option */}
+                <button
+                  onClick={() => setView("recipients")}
+                  className="w-full py-3.5 bg-blue-500 hover:bg-blue-600 text-white rounded-2xl font-semibold transition-colors"
+                >
+                  Add & Send Now
                 </button>
 
                 {error && <p className="text-red-500 text-sm text-center">{error}</p>}
