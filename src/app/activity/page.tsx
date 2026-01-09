@@ -4,6 +4,7 @@ import Header from "@/components/Header";
 import db from "@/lib/db";
 import ActivityContent from "@/components/ActivityContent";
 import Link from "next/link";
+import ClaimCodeButton from "@/components/ClaimCodeButton";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,9 @@ export default async function ActivityPage() {
       <Header email={user.email} title="Activity" showBack />
 
       <main className="max-w-2xl mx-auto px-4 py-4 space-y-4">
+        {/* Got a code? Button */}
+        <ClaimCodeButton />
+
         {/* Quick access to sent dumps */}
         {dumps.length > 0 && (
           <Link

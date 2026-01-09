@@ -378,7 +378,7 @@ Example invite text:
 
 2. **UI Polish**
    - Show connected vs new recipients differently in send flow
-   - "Got a code?" button in Activity tab
+   - [x] "Got a code?" button in Activity tab (ClaimCodeButton component)
 
 ### Next Steps
 
@@ -387,11 +387,18 @@ Example invite text:
    - Test receiver claiming with code
    - Test sender sending to same recipient again → push sent, no code
 
-2. **Add email backup option**
+2. **Image/Video Optimization on Upload**
+   - Compress images before uploading to Vercel Blob
+   - Resize large images to reasonable max dimensions (e.g., 1080p)
+   - Compress videos or convert to efficient formats
+   - Generate thumbnails for video files
+   - Consider WebP/AVIF for better compression
+
+3. **Add email backup option**
    - Settings page with "Add email for backup"
    - Link device users to email for recovery
 
-3. **Real push notifications**
+4. **Real push notifications**
    - Integrate APNs for iOS
    - Integrate FCM for Android
 
