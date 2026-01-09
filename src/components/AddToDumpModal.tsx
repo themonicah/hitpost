@@ -6,6 +6,15 @@ import { useRouter } from "next/navigation";
 import Confetti from "./Confetti";
 import FunLoader from "./FunLoader";
 import MemePicker from "./MemePicker";
+import LinkSharingModal from "./LinkSharingModal";
+
+interface RecipientResult {
+  name: string;
+  link: string;
+  claimCode: string | null;
+  isConnected: boolean;
+  pushSent: boolean;
+}
 
 interface Dump {
   id: string;
@@ -69,6 +78,10 @@ export default function AddToDumpModal({
   const [showRecipientPicker, setShowRecipientPicker] = useState(false);
   const [showMemePicker, setShowMemePicker] = useState(false);
   const [newRecipientName, setNewRecipientName] = useState("");
+  const [showLinkSharing, setShowLinkSharing] = useState(false);
+  const [sentRecipients, setSentRecipients] = useState<RecipientResult[]>([]);
+  const [sentDumpId, setSentDumpId] = useState<string | null>(null);
+  const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Track if this is a new dump or existing
@@ -133,6 +146,10 @@ export default function AddToDumpModal({
       setHasUnsavedChanges(false);
       setShowDiscardConfirm(false);
       setShowSendConfirm(false);
+      setShowLinkSharing(false);
+      setSentRecipients([]);
+      setSentDumpId(null);
+      setExpandedGroupId(null);
     }
   }, [isOpen]);
 
@@ -238,11 +255,25 @@ export default function AddToDumpModal({
 
       if (!isDraft) {
         setShowConfetti(true);
+
+        // Check if any recipients need manual link sharing
+        const recipients = data.recipients || [];
+        const needsLinks = recipients.some((r: RecipientResult) => !r.isConnected);
+
         setTimeout(() => {
-          onComplete?.();
-          onClose();
           setShowConfetti(false);
-          router.push(`/dumps/${data.dumpId}`);
+
+          if (needsLinks) {
+            // Show link sharing modal instead of immediately redirecting
+            setSentRecipients(recipients);
+            setSentDumpId(data.dumpId);
+            setShowLinkSharing(true);
+          } else {
+            // All connected - just close and navigate
+            onComplete?.();
+            onClose();
+            router.push(`/dumps/${data.dumpId}`);
+          }
         }, 1000);
       } else {
         onComplete?.();
@@ -496,9 +527,14 @@ export default function AddToDumpModal({
                       {/* Connected users */}
                       {connectedUsers.length > 0 && (
                         <div className="p-3 border-b border-gray-200">
-                          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                            Connected
-                          </p>
+                          <div className="flex items-center gap-2 mb-2">
+                            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                              Connected
+                            </p>
+                            <span className="text-[10px] text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full">
+                              gets push
+                            </span>
+                          </div>
                           {connectedUsers.map((connection) => (
                             <button
                               key={connection.id}
@@ -506,13 +542,15 @@ export default function AddToDumpModal({
                               className="w-full flex items-center justify-between py-2"
                             >
                               <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center">
+                                <div className="w-8 h-8 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center">
                                   <span className="text-white font-semibold text-xs">
                                     {connection.name.charAt(0).toUpperCase()}
                                   </span>
                                 </div>
                                 <span className="font-medium text-sm">{formatName(connection.name)}</span>
-                                <span className="text-green-500 text-xs">✓</span>
+                                <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 24 24">
+                                  <path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                                </svg>
                               </div>
                               <div className={`w-5 h-5 rounded-full flex items-center justify-center ${
                                 selectedConnectionIds.has(connection.id) ? "bg-blue-500" : "bg-gray-200"
@@ -531,9 +569,14 @@ export default function AddToDumpModal({
                       {/* Pending connections */}
                       {pendingConnections.length > 0 && (
                         <div className="p-3 border-b border-gray-200">
-                          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                            Pending
-                          </p>
+                          <div className="flex items-center gap-2 mb-2">
+                            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                              Not Connected
+                            </p>
+                            <span className="text-[10px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full">
+                              needs link
+                            </span>
+                          </div>
                           {pendingConnections.map((connection) => (
                             <button
                               key={connection.id}
@@ -541,12 +584,15 @@ export default function AddToDumpModal({
                               className="w-full flex items-center justify-between py-2"
                             >
                               <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
-                                  <span className="text-gray-500 font-semibold text-xs">
+                                <div className="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center">
+                                  <span className="text-amber-600 font-semibold text-xs">
                                     {connection.name.charAt(0).toUpperCase()}
                                   </span>
                                 </div>
                                 <span className="font-medium text-sm">{formatName(connection.name)}</span>
+                                <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                                </svg>
                               </div>
                               <div className={`w-5 h-5 rounded-full flex items-center justify-center ${
                                 selectedConnectionIds.has(connection.id) ? "bg-blue-500" : "bg-gray-200"
@@ -565,34 +611,82 @@ export default function AddToDumpModal({
                       {/* Groups */}
                       {groups.length > 0 && (
                         <div className="p-3 border-b border-gray-200">
-                          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                            Groups
-                          </p>
-                          {groups.map((group) => (
-                            <button
-                              key={group.id}
-                              onClick={() => toggleGroup(group.id)}
-                              className="w-full flex items-center justify-between py-2"
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                              Groups
+                            </p>
+                            <a
+                              href="/groups"
+                              onClick={(e) => e.stopPropagation()}
+                              className="text-[10px] text-blue-500 hover:text-blue-600"
                             >
-                              <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center">
-                                  <span className="text-sm">👥</span>
-                                </div>
-                                <div className="text-left">
-                                  <span className="font-medium text-sm block">{group.name}</span>
-                                  <span className="text-xs text-gray-400">{group.members.length} people</span>
-                                </div>
-                              </div>
-                              <div className={`w-5 h-5 rounded-full flex items-center justify-center ${
-                                selectedGroupIds.has(group.id) ? "bg-blue-500" : "bg-gray-200"
-                              }`}>
-                                {selectedGroupIds.has(group.id) && (
-                                  <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              Manage
+                            </a>
+                          </div>
+                          {groups.map((group) => (
+                            <div key={group.id} className="mb-2">
+                              <div className="flex items-center justify-between py-2">
+                                <button
+                                  onClick={() => setExpandedGroupId(expandedGroupId === group.id ? null : group.id)}
+                                  className="flex items-center gap-2 flex-1"
+                                >
+                                  <div className="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center">
+                                    <span className="text-sm">👥</span>
+                                  </div>
+                                  <div className="text-left">
+                                    <span className="font-medium text-sm block">{group.name}</span>
+                                    <span className="text-xs text-gray-400">{group.members.length} people</span>
+                                  </div>
+                                  <svg
+                                    className={`w-4 h-4 text-gray-400 transition-transform ${expandedGroupId === group.id ? 'rotate-180' : ''}`}
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                                   </svg>
-                                )}
+                                </button>
+                                <button
+                                  onClick={() => toggleGroup(group.id)}
+                                  className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                                    selectedGroupIds.has(group.id) ? "bg-blue-500" : "bg-gray-200"
+                                  }`}
+                                >
+                                  {selectedGroupIds.has(group.id) && (
+                                    <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                  )}
+                                </button>
                               </div>
-                            </button>
+
+                              {/* Expanded member list */}
+                              {expandedGroupId === group.id && (
+                                <div className="ml-10 mt-1 space-y-1 pb-2">
+                                  {group.members.map((member) => (
+                                    <div key={member.id} className="flex items-center gap-2 py-1 text-sm text-gray-600">
+                                      <div className="w-5 h-5 bg-gray-200 rounded-full flex items-center justify-center">
+                                        <span className="text-[10px] font-medium">{member.name.charAt(0).toUpperCase()}</span>
+                                      </div>
+                                      <span>{member.name}</span>
+                                    </div>
+                                  ))}
+                                  {group.members.length === 0 && (
+                                    <p className="text-xs text-gray-400 italic">No members yet</p>
+                                  )}
+                                  <a
+                                    href={`/groups`}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="text-xs text-blue-500 hover:text-blue-600 flex items-center gap-1 pt-1"
+                                  >
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                    </svg>
+                                    Edit group
+                                  </a>
+                                </div>
+                              )}
+                            </div>
                           ))}
                         </div>
                       )}
@@ -711,6 +805,21 @@ export default function AddToDumpModal({
           setDumpMemes(selectedMemes);
           setHasUnsavedChanges(true);
         }}
+      />
+
+      {/* Link Sharing Modal - shows after sending to non-connected recipients */}
+      <LinkSharingModal
+        isOpen={showLinkSharing}
+        onClose={() => {
+          setShowLinkSharing(false);
+          onComplete?.();
+          onClose();
+          if (sentDumpId) {
+            router.push(`/dumps/${sentDumpId}`);
+          }
+        }}
+        recipients={sentRecipients}
+        dumpId={sentDumpId || ""}
       />
     </>
   );

@@ -5,6 +5,15 @@ import { useRouter } from "next/navigation";
 import { UserConnection } from "@/lib/db";
 import Confetti from "@/components/Confetti";
 import FunLoader from "@/components/FunLoader";
+import LinkSharingModal from "@/components/LinkSharingModal";
+
+interface RecipientResult {
+  name: string;
+  link: string;
+  claimCode: string | null;
+  isConnected: boolean;
+  pushSent: boolean;
+}
 
 interface SelectedFile {
   file: File;
@@ -49,6 +58,9 @@ export default function NewDumpPage() {
   const [addingRecipient, setAddingRecipient] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
   const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
+  const [showLinkSharing, setShowLinkSharing] = useState(false);
+  const [sentRecipients, setSentRecipients] = useState<RecipientResult[]>([]);
+  const [sentDumpId, setSentDumpId] = useState<string | null>(null);
 
   // Auto-open file picker on mount
   useEffect(() => {
@@ -172,8 +184,23 @@ export default function NewDumpPage() {
 
       if (!isDraft) {
         setShowConfetti(true);
+
+        // Check if any recipients need manual link sharing
+        const recipients = data.recipients || [];
+        const needsLinks = recipients.some((r: RecipientResult) => !r.isConnected);
+
         setTimeout(() => {
-          router.push(`/dumps/${data.dumpId}`);
+          setShowConfetti(false);
+
+          if (needsLinks) {
+            // Show link sharing modal instead of immediately redirecting
+            setSentRecipients(recipients);
+            setSentDumpId(data.dumpId);
+            setShowLinkSharing(true);
+          } else {
+            // All connected - just navigate
+            router.push(`/dumps/${data.dumpId}`);
+          }
         }, 1000);
       } else {
         router.push("/");
@@ -444,9 +471,14 @@ export default function NewDumpPage() {
                 <div className="bg-gray-50 rounded-2xl overflow-hidden mt-3">
                   {connectedUsers.length > 0 && (
                     <div className="p-3 border-b border-gray-200">
-                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                        Connected
-                      </p>
+                      <div className="flex items-center gap-2 mb-2">
+                        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                          Connected
+                        </p>
+                        <span className="text-[10px] text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full">
+                          gets push
+                        </span>
+                      </div>
                       {connectedUsers.map((connection) => (
                         <button
                           key={connection.id}
@@ -454,13 +486,15 @@ export default function NewDumpPage() {
                           className="w-full flex items-center justify-between py-2"
                         >
                           <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center">
+                            <div className="w-8 h-8 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center">
                               <span className="text-white font-semibold text-xs">
                                 {connection.name.charAt(0).toUpperCase()}
                               </span>
                             </div>
                             <span className="font-medium text-sm">{formatName(connection.name)}</span>
-                            <span className="text-green-500 text-xs">✓</span>
+                            <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                            </svg>
                           </div>
                           <div
                             className={`w-5 h-5 rounded-full flex items-center justify-center ${
@@ -480,9 +514,14 @@ export default function NewDumpPage() {
 
                   {pendingConnections.length > 0 && (
                     <div className="p-3 border-b border-gray-200">
-                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                        Pending
-                      </p>
+                      <div className="flex items-center gap-2 mb-2">
+                        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                          Not Connected
+                        </p>
+                        <span className="text-[10px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full">
+                          needs link
+                        </span>
+                      </div>
                       {pendingConnections.map((connection) => (
                         <button
                           key={connection.id}
@@ -490,12 +529,15 @@ export default function NewDumpPage() {
                           className="w-full flex items-center justify-between py-2"
                         >
                           <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
-                              <span className="text-gray-500 font-semibold text-xs">
+                            <div className="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center">
+                              <span className="text-amber-600 font-semibold text-xs">
                                 {connection.name.charAt(0).toUpperCase()}
                               </span>
                             </div>
                             <span className="font-medium text-sm">{formatName(connection.name)}</span>
+                            <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                            </svg>
                           </div>
                           <div
                             className={`w-5 h-5 rounded-full flex items-center justify-center ${
@@ -622,6 +664,19 @@ export default function NewDumpPage() {
           </main>
         )}
       </div>
+
+      {/* Link Sharing Modal - shows after sending to non-connected recipients */}
+      <LinkSharingModal
+        isOpen={showLinkSharing}
+        onClose={() => {
+          setShowLinkSharing(false);
+          if (sentDumpId) {
+            router.push(`/dumps/${sentDumpId}`);
+          }
+        }}
+        recipients={sentRecipients}
+        dumpId={sentDumpId || ""}
+      />
     </>
   );
 }
