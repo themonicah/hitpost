@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import FunLoader from "@/components/FunLoader";
 import EmptyState from "@/components/EmptyState";
+import AddToDumpModal from "@/components/AddToDumpModal";
 
 interface DumpSummary {
   id: string;
@@ -159,6 +160,8 @@ export default function HomeContent({ userId }: HomeContentProps) {
   const [dumps, setDumps] = useState<DumpSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedDumpId, setSelectedDumpId] = useState<string | null>(null);
+  const [showDumpDrawer, setShowDumpDrawer] = useState(false);
 
   const fetchDumps = useCallback(async () => {
     setError(null);
@@ -246,7 +249,10 @@ export default function HomeContent({ userId }: HomeContentProps) {
               <DumpCard
                 key={dump.id}
                 dump={dump}
-                onClick={() => router.push(`/dumps/${dump.id}`)}
+                onClick={() => {
+                  setSelectedDumpId(dump.id);
+                  setShowDumpDrawer(true);
+                }}
               />
             ))}
             <NewDumpCard onClick={() => router.push("/new-dump")} />
@@ -263,7 +269,10 @@ export default function HomeContent({ userId }: HomeContentProps) {
               <DumpCard
                 key={dump.id}
                 dump={dump}
-                onClick={() => router.push(`/dumps/${dump.id}`)}
+                onClick={() => {
+                  setSelectedDumpId(dump.id);
+                  setShowDumpDrawer(true);
+                }}
               />
             ))}
           </div>
@@ -283,6 +292,21 @@ export default function HomeContent({ userId }: HomeContentProps) {
           </button>
         </div>
       )}
+
+      {/* Dump Drawer */}
+      <AddToDumpModal
+        isOpen={showDumpDrawer}
+        onClose={() => {
+          setShowDumpDrawer(false);
+          setSelectedDumpId(null);
+          fetchDumps(); // Refresh list
+        }}
+        selectedMemes={[]}
+        preselectedDumpId={selectedDumpId}
+        onComplete={() => {
+          fetchDumps(); // Refresh list
+        }}
+      />
     </div>
   );
 }
