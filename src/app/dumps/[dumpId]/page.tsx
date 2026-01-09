@@ -49,69 +49,47 @@ export default async function DumpDetailPage({ params }: DumpDetailPageProps) {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-8">
-      <Header email={user.email} title="Dump Details" showBack />
+      <Header email={user.email} title={dump.note || "Dump"} showBack />
 
-      <main className="max-w-4xl mx-auto px-4 py-4">
-        {/* Stats bar */}
-        <div className="flex items-center justify-between bg-white dark:bg-gray-900 rounded-2xl p-4 shadow-sm mb-4">
-          <div>
-            <p className="text-2xl font-bold">{viewedCount}/{recipients.length}</p>
-            <p className="text-sm text-gray-500">opened</p>
-          </div>
-          <div className="text-right">
-            <p className="text-2xl font-bold">{totalViews}</p>
-            <p className="text-sm text-gray-500">total views</p>
-          </div>
-        </div>
+      <main className="max-w-lg mx-auto px-4 py-4 space-y-4">
+        {/* Cute meme stack + stats */}
+        <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow-sm">
+          <div className="flex items-center gap-4">
+            {/* Askew stack preview */}
+            <div className="relative w-20 h-20 flex-shrink-0">
+              {memes.slice(0, 3).map((meme, i) => (
+                <div
+                  key={meme.id}
+                  className="absolute w-16 h-16 rounded-xl overflow-hidden bg-gray-100 shadow-md"
+                  style={{
+                    transform: `rotate(${(i - 1) * 8}deg)`,
+                    top: `${i * 3}px`,
+                    left: `${i * 3}px`,
+                    zIndex: 3 - i,
+                  }}
+                >
+                  {meme.file_type === "video" ? (
+                    <video src={meme.file_url} className="w-full h-full object-cover" muted playsInline />
+                  ) : (
+                    <img src={meme.file_url} alt="" className="w-full h-full object-cover" />
+                  )}
+                </div>
+              ))}
+            </div>
 
-        {/* Note */}
-        {dump.note && (
-          <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow-sm mb-4">
-            <p className="text-sm text-gray-500 mb-1">Your note</p>
-            <p className="text-gray-700 dark:text-gray-300">"{dump.note}"</p>
-          </div>
-        )}
-
-        {/* Memes grid */}
-        <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow-sm mb-4">
-          <h2 className="font-semibold mb-3">{memes.length} memes</h2>
-          <div className="grid grid-cols-4 sm:grid-cols-6 gap-1 rounded-xl overflow-hidden">
-            {memes.slice(0, 12).map((meme) => (
-              <div
-                key={meme.id}
-                className="aspect-square bg-gray-100 dark:bg-gray-800"
-              >
-                {meme.file_type === "video" ? (
-                  <video
-                    src={meme.file_url}
-                    className="w-full h-full object-cover"
-                    muted
-                    playsInline
-                    preload="metadata"
-                  />
-                ) : (
-                  <img
-                    src={meme.file_url}
-                    alt=""
-                    className="w-full h-full object-cover"
-                    loading="lazy"
-                  />
-                )}
-              </div>
-            ))}
-            {memes.length > 12 && (
-              <div className="aspect-square bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-500 text-sm font-medium">
-                +{memes.length - 12}
-              </div>
-            )}
+            {/* Stats */}
+            <div className="flex-1">
+              <p className="text-2xl font-bold">{viewedCount}/{recipients.length}</p>
+              <p className="text-sm text-gray-500">opened</p>
+              <p className="text-xs text-gray-400 mt-1">{memes.length} memes · {totalViews} views</p>
+            </div>
           </div>
         </div>
 
-        {/* Recipients */}
+        {/* Recipients - the main focus */}
         <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm overflow-hidden">
-          <div className="p-4 border-b border-gray-100 dark:border-gray-800">
-            <h2 className="font-semibold">Recipients</h2>
-            <p className="text-sm text-gray-500">Share links with recipients</p>
+          <div className="p-3 border-b border-gray-100 dark:border-gray-800">
+            <h2 className="font-semibold text-sm">Recipients</h2>
           </div>
 
           <div className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -120,43 +98,47 @@ export default async function DumpDetailPage({ params }: DumpDetailPageProps) {
               const hasViewed = !!recipient.viewed_at;
 
               return (
-                <div key={recipient.id} className="p-4">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-2 h-2 rounded-full ${hasViewed ? "bg-green-500" : "bg-gray-300"}`} />
+                <div key={recipient.id} className="p-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      {/* Avatar with status indicator */}
+                      <div className="relative">
+                        <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center">
+                          <span className="text-white font-semibold text-sm">
+                            {(recipient.name || "?").charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                        <div className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white ${hasViewed ? "bg-green-500" : "bg-gray-300"}`} />
+                      </div>
+
+                      {/* Name and status */}
                       <div>
-                        <p className="font-medium">{recipient.email}</p>
-                        <p className="text-sm text-gray-500">
+                        <p className="font-medium text-gray-900">{recipient.name || "Unknown"}</p>
+                        <p className="text-xs text-gray-500">
                           {hasViewed
-                            ? `Viewed ${new Date(recipient.viewed_at!).toLocaleDateString()} · ${recipient.view_count} view${recipient.view_count !== 1 ? "s" : ""}`
+                            ? `Opened · ${recipient.view_count} view${recipient.view_count !== 1 ? "s" : ""}`
                             : "Not opened yet"}
                         </p>
                       </div>
                     </div>
-                    {recipient.reactions.length > 0 && (
-                      <div className="flex gap-0.5 bg-gray-100 dark:bg-gray-800 rounded-full px-2 py-1">
-                        {recipient.reactions.map((r) => (
-                          <span key={r.id} className="text-lg">{r.emoji}</span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
 
-                  {/* Link row */}
-                  <div className="flex items-center gap-2 mt-3">
-                    <input
-                      type="text"
-                      value={link}
-                      readOnly
-                      className="flex-1 px-3 py-2 text-sm bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl font-mono text-gray-500 truncate"
-                    />
-                    <CopyLinkButton link={link} />
+                    {/* Reactions or copy button */}
+                    <div className="flex items-center gap-2">
+                      {recipient.reactions.length > 0 && (
+                        <div className="flex gap-0.5">
+                          {recipient.reactions.map((r) => (
+                            <span key={r.id} className="text-lg">{r.emoji}</span>
+                          ))}
+                        </div>
+                      )}
+                      <CopyLinkButton link={link} />
+                    </div>
                   </div>
 
                   {/* Recipient note */}
                   {recipient.recipient_note && (
-                    <div className="mt-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl p-3">
-                      <p className="text-sm text-blue-600 dark:text-blue-400">
+                    <div className="mt-2 ml-13 bg-blue-50 dark:bg-blue-900/20 rounded-lg px-3 py-2">
+                      <p className="text-xs text-blue-600 dark:text-blue-400">
                         "{recipient.recipient_note}"
                       </p>
                     </div>
@@ -168,7 +150,7 @@ export default async function DumpDetailPage({ params }: DumpDetailPageProps) {
         </div>
 
         {/* Timestamp */}
-        <p className="text-center text-sm text-gray-400 mt-6">
+        <p className="text-center text-xs text-gray-400">
           Sent {new Date(dump.created_at).toLocaleString()}
         </p>
       </main>

@@ -11,6 +11,7 @@ interface HeaderProps {
   showBack?: boolean;
   rightAction?: React.ReactNode;
   onShowQRCode?: () => void;
+  showNewDump?: boolean;
 }
 
 // Fun header decorations based on page
@@ -47,6 +48,7 @@ export default function Header({
   showBack,
   rightAction,
   onShowQRCode,
+  showNewDump,
 }: HeaderProps) {
   const displayTitle = title === "Groups" ? "Circles" : title;
   const router = useRouter();
@@ -86,8 +88,19 @@ export default function Header({
           </h1>
 
           {/* Right side - actions + account */}
-          <div className="w-24 flex items-center justify-end gap-1">
+          <div className="w-32 flex items-center justify-end gap-1">
             {rightAction}
+
+            {/* New Dump button */}
+            {showNewDump && (
+              <Link
+                href="/new-dump"
+                className="px-3 py-1.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-semibold rounded-full hover:from-amber-600 hover:to-orange-600 transition-colors flex items-center gap-1"
+              >
+                <span>💩</span>
+                <span className="hidden sm:inline">New</span>
+              </Link>
+            )}
 
             {/* Activity button */}
             <Link

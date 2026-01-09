@@ -26,6 +26,7 @@ export default function ViewDumpContent({
   claimCode,
   isClaimed,
 }: ViewDumpContentProps) {
+  const [showIntro, setShowIntro] = useState(true);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [reactions, setReactions] = useState(existingReactions);
   const [note, setNote] = useState(recipientNote || "");

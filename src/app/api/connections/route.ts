@@ -7,21 +7,31 @@ export async function POST(req: NextRequest) {
   try {
     const { connectorId, name } = await req.json();
 
-    if (!connectorId || !name?.trim()) {
+    if (!name?.trim()) {
       return NextResponse.json(
-        { error: "Connector ID and name are required" },
+        { error: "Name is required" },
         { status: 400 }
       );
     }
 
+    // Use session user if no connectorId provided
+    let actualConnectorId = connectorId;
+    if (!actualConnectorId) {
+      const user = await getSession();
+      if (!user) {
+        return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+      }
+      actualConnectorId = user.id;
+    }
+
     // Verify the connector user exists
-    const connector = await db.getUserById(connectorId);
+    const connector = await db.getUserById(actualConnectorId);
     if (!connector) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     // Check if connection already exists
-    const existing = await db.getConnectionByConnectorAndName(connectorId, name.trim());
+    const existing = await db.getConnectionByConnectorAndName(actualConnectorId, name.trim());
     if (existing) {
       // Connection already exists, that's fine
       return NextResponse.json({
@@ -33,7 +43,7 @@ export async function POST(req: NextRequest) {
 
     // Create new connection
     const connection = await db.createConnection({
-      connector_id: connectorId,
+      connector_id: actualConnectorId,
       name: name.trim(),
     });
 

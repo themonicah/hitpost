@@ -21,6 +21,7 @@ export default function LoggedInHome({ userId, userEmail }: LoggedInHomeProps) {
         userId={userId}
         title="HitPost"
         onShowQRCode={() => setShowQRCode(true)}
+        showNewDump
       />
       <main className="max-w-4xl mx-auto px-4 py-4">
         <HomeContent userId={userId} />

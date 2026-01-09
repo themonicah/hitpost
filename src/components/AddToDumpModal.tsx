@@ -96,7 +96,8 @@ export default function AddToDumpModal({
             setExistingDump(dumpData.dump);
             setDumpName(dumpData.dump.note || "");
             // Merge existing dump memes with selected memes
-            const existingMemes = dumpData.memes || [];
+            // API returns memes inside dump.memes
+            const existingMemes = dumpData.dump.memes || [];
             const mergedMemes = [...existingMemes];
             selectedMemes.forEach(m => {
               if (!mergedMemes.find((em: Meme) => em.id === m.id)) {
@@ -135,7 +136,35 @@ export default function AddToDumpModal({
     }
   }, [isOpen]);
 
-  function getSelectedRecipients(): { name: string; connectionId?: string }[] {
+  function getSelectedRecipients(): { name: string; connectionId?: string; groupId?: string; isGroupMember?: boolean }[] {
+    const recipients: { name: string; connectionId?: string; groupId?: string; isGroupMember?: boolean }[] = [];
+
+    // Add from selected groups (track the group they came from)
+    for (const groupId of selectedGroupIds) {
+      const group = groups.find((g) => g.id === groupId);
+      if (group) {
+        // Add the group as a single recipient entry
+        recipients.push({
+          name: group.name,
+          groupId: group.id,
+          isGroupMember: false
+        });
+      }
+    }
+
+    // Add from selected connections
+    for (const connectionId of selectedConnectionIds) {
+      const connection = connections.find((c) => c.id === connectionId);
+      if (connection && !recipients.find(r => r.name === connection.name)) {
+        recipients.push({ name: connection.name, connectionId: connection.id });
+      }
+    }
+
+    return recipients;
+  }
+
+  // Get actual recipients for sending (expand groups to members)
+  function getRecipientsForSend(): { name: string; connectionId?: string }[] {
     const recipients: { name: string; connectionId?: string }[] = [];
 
     // Add from selected groups
@@ -161,14 +190,17 @@ export default function AddToDumpModal({
     return recipients;
   }
 
-  const recipientCount = getSelectedRecipients().length;
+  const recipientsForDisplay = getSelectedRecipients();
+  const recipientsForSend = getRecipientsForSend();
+  const recipientCount = recipientsForSend.length;
   const hasMemes = dumpMemes.length > 0;
-  const canSaveDraft = hasMemes;
+  const hasName = dumpName.trim().length > 0;
+  const canSaveDraft = hasMemes || hasName; // Can save with just a name
   const canSend = hasMemes && recipientCount > 0;
 
   // Action button text
   const actionButtonText = canSend ? "Send Now" : "Save Draft";
-  const isActionDisabled = saving || !hasMemes;
+  const isActionDisabled = saving || !canSaveDraft;
 
   async function handleAction() {
     if (canSend) {
@@ -191,7 +223,7 @@ export default function AddToDumpModal({
         body: JSON.stringify({
           memeIds: dumpMemes.map((m) => m.id),
           note: dumpName || null,
-          recipients: isDraft ? [] : getSelectedRecipients(),
+          recipients: isDraft ? [] : getRecipientsForSend(),
           isDraft,
           existingDumpId: existingDump?.id || null,
         }),
@@ -250,6 +282,46 @@ export default function AddToDumpModal({
       return next;
     });
     setHasUnsavedChanges(true);
+  }
+
+  const [addingRecipient, setAddingRecipient] = useState(false);
+
+  async function handleAddNewRecipient() {
+    if (!newRecipientName.trim() || addingRecipient) return;
+
+    setAddingRecipient(true);
+    setError("");
+
+    try {
+      const res = await fetch("/api/connections", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newRecipientName.trim() }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        // Refresh connections and auto-select the new one
+        const connectionsRes = await fetch("/api/connections");
+        const connectionsData = await connectionsRes.json();
+        setConnections(connectionsData.connections || []);
+
+        // Auto-select the new connection
+        if (data.connectionId) {
+          setSelectedConnectionIds(prev => new Set([...prev, data.connectionId]));
+        }
+        setNewRecipientName("");
+        setHasUnsavedChanges(true);
+      } else {
+        setError(data.error || "Failed to add recipient");
+      }
+    } catch (err) {
+      console.error("Failed to add recipient:", err);
+      setError("Failed to add recipient. Please try again.");
+    } finally {
+      setAddingRecipient(false);
+    }
   }
 
   if (!isOpen) return null;
@@ -381,19 +453,25 @@ export default function AddToDumpModal({
 
                   {/* Selected recipients as chips */}
                   <div className="flex flex-wrap gap-2">
-                    {getSelectedRecipients().map((recipient) => (
+                    {recipientsForDisplay.map((recipient) => (
                       <span
-                        key={recipient.name}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-100 text-blue-700 rounded-full text-sm font-medium"
+                        key={recipient.groupId || recipient.connectionId || recipient.name}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium ${
+                          recipient.groupId
+                            ? "bg-amber-100 text-amber-700"
+                            : "bg-blue-100 text-blue-700"
+                        }`}
                       >
-                        {formatName(recipient.name)}
+                        {recipient.groupId ? "👥 " : ""}{formatName(recipient.name)}
                         <button
                           onClick={() => {
-                            if (recipient.connectionId) {
+                            if (recipient.groupId) {
+                              toggleGroup(recipient.groupId);
+                            } else if (recipient.connectionId) {
                               toggleConnection(recipient.connectionId);
                             }
                           }}
-                          className="text-blue-400 hover:text-blue-600"
+                          className={recipient.groupId ? "text-amber-400 hover:text-amber-600" : "text-blue-400 hover:text-blue-600"}
                         >
                           ×
                         </button>
@@ -531,12 +609,14 @@ export default function AddToDumpModal({
                             onChange={(e) => setNewRecipientName(e.target.value)}
                             placeholder="Name..."
                             className="flex-1 px-3 py-2 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && newRecipientName.trim()) {
+                                handleAddNewRecipient();
+                              }
+                            }}
                           />
                           <button
-                            onClick={() => {
-                              // TODO: Add new recipient
-                              setNewRecipientName("");
-                            }}
+                            onClick={handleAddNewRecipient}
                             disabled={!newRecipientName.trim()}
                             className="px-4 py-2 bg-blue-500 text-white rounded-xl text-sm font-medium disabled:opacity-50"
                           >

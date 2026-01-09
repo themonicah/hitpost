@@ -46,6 +46,7 @@ export default function MemeViewer({
   const [adding, setAdding] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
+  const [dumpMemeIds, setDumpMemeIds] = useState<Set<string>>(new Set());
 
   // Fetch dumps for quick-add
   useEffect(() => {
@@ -58,6 +59,21 @@ export default function MemeViewer({
       .catch(console.error);
   }, []);
 
+  // Fetch memes in selected dump to know if current meme is already added
+  useEffect(() => {
+    if (!selectedDumpId) {
+      setDumpMemeIds(new Set());
+      return;
+    }
+    fetch(`/api/dumps/${selectedDumpId}`)
+      .then((r) => r.json())
+      .then((data) => {
+        const memeIds = new Set<string>((data.memes || []).map((m: { id: string }) => m.id));
+        setDumpMemeIds(memeIds);
+      })
+      .catch(console.error);
+  }, [selectedDumpId]);
+
   // Reset video state when meme changes
   useEffect(() => {
     setVideoLoading(true);
@@ -65,6 +81,10 @@ export default function MemeViewer({
   }, [currentIndex]);
 
   const currentMeme = memes[currentIndex];
+
+  // Check if current meme is already in the selected dump
+  const isInSelectedDump = selectedDumpId ? dumpMemeIds.has(currentMeme?.id) : false;
+  const selectedDump = dumps.find((d) => d.id === selectedDumpId);
 
   const goNext = useCallback(() => {
     if (currentIndex < memes.length - 1) {
@@ -143,13 +163,50 @@ export default function MemeViewer({
         }),
       });
       if (res.ok) {
-        const selectedDump = dumps.find((d) => d.id === selectedDumpId);
+        // Update local state
+        setDumpMemeIds((prev) => new Set([...prev, currentMeme.id]));
+        setDumps((prev) =>
+          prev.map((d) =>
+            d.id === selectedDumpId ? { ...d, meme_count: d.meme_count + 1 } : d
+          )
+        );
         setToastMessage(`Added to "${selectedDump?.note || "Untitled"}"`);
         setShowToast(true);
         setTimeout(() => setShowToast(false), 2000);
       }
     } catch (err) {
       console.error("Failed to add:", err);
+    } finally {
+      setAdding(false);
+    }
+  }
+
+  // Remove from existing dump
+  async function handleRemove() {
+    if (!selectedDumpId) return;
+    setAdding(true);
+    try {
+      const res = await fetch(`/api/dumps/${selectedDumpId}/memes/${currentMeme.id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        // Update local state
+        setDumpMemeIds((prev) => {
+          const next = new Set(prev);
+          next.delete(currentMeme.id);
+          return next;
+        });
+        setDumps((prev) =>
+          prev.map((d) =>
+            d.id === selectedDumpId ? { ...d, meme_count: Math.max(0, d.meme_count - 1) } : d
+          )
+        );
+        setToastMessage(`Removed from "${selectedDump?.note || "Untitled"}"`);
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 2000);
+      }
+    } catch (err) {
+      console.error("Failed to remove:", err);
     } finally {
       setAdding(false);
     }
@@ -215,13 +272,32 @@ export default function MemeViewer({
 
   const opacity = isDragging ? Math.max(0.3, 1 - dragY / 300) : 1;
 
+  // Calculate film strip scroll position
+  const filmStripRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (filmStripRef.current) {
+      const thumbnail = filmStripRef.current.children[currentIndex] as HTMLElement;
+      if (thumbnail) {
+        thumbnail.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      }
+    }
+  }, [currentIndex]);
+
+  // Handle background click to dismiss
+  function handleBackgroundClick(e: React.MouseEvent) {
+    // Only close if clicking the background, not the content
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  }
+
   return (
     <div
-      className="fixed inset-0 z-[100]"
-      style={{ backgroundColor: `rgba(0, 0, 0, ${0.9 * opacity})` }}
+      className="fixed inset-0 z-[100] flex flex-col"
+      style={{ backgroundColor: `rgba(0, 0, 0, ${0.95 * opacity})` }}
     >
       {/* Header bar */}
-      <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-4 pt-14 pb-4">
+      <div className="flex-shrink-0 flex items-center justify-between px-4 pt-14 pb-4">
         {/* Close button - left side */}
         <button
           onClick={onClose}
@@ -230,8 +306,10 @@ export default function MemeViewer({
           ×
         </button>
 
-        {/* Center spacer */}
-        <div />
+        {/* Counter in center */}
+        <span className="text-white/60 text-sm font-medium">
+          {currentIndex + 1} / {memes.length}
+        </span>
 
         {/* Right - Delete button */}
         {onDelete && (
@@ -250,68 +328,76 @@ export default function MemeViewer({
         {!onDelete && <div className="w-10" />}
       </div>
 
-      {/* Main content */}
+      {/* Main content area - click outside to dismiss */}
       <div
-        className="w-full h-full flex items-center justify-center"
+        className="flex-1 flex items-center justify-center px-4 min-h-0"
+        onClick={handleBackgroundClick}
         style={{
           transform: isDragging ? `translateY(${dragY}px) scale(${Math.max(0.9, 1 - dragY / 500)})` : undefined,
           transition: isDragging ? 'none' : 'transform 0.2s ease-out',
         }}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        onClick={handleTap}
       >
-        {currentMeme.file_type === "video" ? (
-          <div className="relative">
-            {/* Video loading indicator */}
-            {videoLoading && !videoError && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-10 h-10 border-3 border-white/30 border-t-white rounded-full animate-spin" />
-              </div>
-            )}
-            {/* Video error state */}
-            {videoError && (
-              <div className="flex flex-col items-center justify-center text-white/60 p-8">
-                <div className="text-4xl mb-3">📹</div>
-                <p className="text-sm">Video failed to load</p>
-                <button
-                  onClick={() => {
-                    setVideoError(false);
-                    setVideoLoading(true);
-                    if (videoRef.current) {
-                      videoRef.current.load();
-                    }
+        <div
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleTap();
+          }}
+          className="max-w-full max-h-full"
+        >
+          {currentMeme.file_type === "video" ? (
+            <div className="relative">
+              {/* Video loading indicator */}
+              {videoLoading && !videoError && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-10 h-10 border-3 border-white/30 border-t-white rounded-full animate-spin" />
+                </div>
+              )}
+              {/* Video error state */}
+              {videoError && (
+                <div className="flex flex-col items-center justify-center text-white/60 p-8">
+                  <div className="text-4xl mb-3">📹</div>
+                  <p className="text-sm">Video failed to load</p>
+                  <button
+                    onClick={() => {
+                      setVideoError(false);
+                      setVideoLoading(true);
+                      if (videoRef.current) {
+                        videoRef.current.load();
+                      }
+                    }}
+                    className="mt-3 px-4 py-2 bg-white/20 rounded-full text-sm hover:bg-white/30"
+                  >
+                    Retry
+                  </button>
+                </div>
+              )}
+              {!videoError && (
+                <video
+                  ref={videoRef}
+                  src={currentMeme.file_url}
+                  className={`max-w-full max-h-[60vh] object-contain rounded-lg ${videoLoading ? 'opacity-0' : 'opacity-100'} transition-opacity`}
+                  controls
+                  playsInline
+                  autoPlay
+                  onCanPlay={() => setVideoLoading(false)}
+                  onError={() => {
+                    setVideoLoading(false);
+                    setVideoError(true);
                   }}
-                  className="mt-3 px-4 py-2 bg-white/20 rounded-full text-sm hover:bg-white/30"
-                >
-                  Retry
-                </button>
-              </div>
-            )}
-            {!videoError && (
-              <video
-                ref={videoRef}
-                src={currentMeme.file_url}
-                className={`max-w-full max-h-full object-contain ${videoLoading ? 'opacity-0' : 'opacity-100'} transition-opacity`}
-                controls
-                playsInline
-                autoPlay
-                onCanPlay={() => setVideoLoading(false)}
-                onError={() => {
-                  setVideoLoading(false);
-                  setVideoError(true);
-                }}
-              />
-            )}
-          </div>
-        ) : (
-          <img
-            src={currentMeme.file_url}
-            alt={`Meme ${currentIndex + 1}`}
-            className="max-w-full max-h-full object-contain"
-          />
-        )}
+                />
+              )}
+            </div>
+          ) : (
+            <img
+              src={currentMeme.file_url}
+              alt={`Meme ${currentIndex + 1}`}
+              className="max-w-full max-h-[60vh] object-contain rounded-lg"
+            />
+          )}
+        </div>
       </div>
 
       {/* Navigation arrows (desktop) */}
@@ -338,24 +424,31 @@ export default function MemeViewer({
         </button>
       )}
 
-      {/* Floating Quick-Add Bar */}
+      {/* Add to Dump Bar */}
       {(onAddToDump || onNewDump) && (
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10">
-          <div className="flex items-center gap-2 bg-white/20 backdrop-blur-md rounded-full p-1.5">
+        <div className="flex-shrink-0 px-4 pb-3">
+          <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md rounded-full p-1.5 max-w-md mx-auto">
             {/* Dump selector dropdown */}
-            <div className="relative">
+            <div className="relative flex-1">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowDumpPicker(!showDumpPicker);
                 }}
-                className="flex items-center gap-2 px-4 py-2.5 text-white font-medium min-w-[140px] justify-between"
+                className="w-full flex items-center gap-2 px-4 py-2.5 text-white font-medium justify-between"
               >
-                <span className="truncate">
-                  {selectedDumpId
-                    ? dumps.find((d) => d.id === selectedDumpId)?.note || "Untitled"
-                    : "Select Dump"}
-                </span>
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="truncate">
+                    {selectedDump
+                      ? selectedDump.note || "Untitled"
+                      : "Select Dump"}
+                  </span>
+                  {selectedDump && (
+                    <span className="flex-shrink-0 text-xs bg-white/20 px-2 py-0.5 rounded-full">
+                      {selectedDump.meme_count}
+                    </span>
+                  )}
+                </div>
                 <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
@@ -363,7 +456,7 @@ export default function MemeViewer({
 
               {/* Dropdown menu */}
               {showDumpPicker && (
-                <div className="absolute bottom-full left-0 mb-2 w-56 bg-gray-900 rounded-2xl overflow-hidden shadow-xl">
+                <div className="absolute bottom-full left-0 right-0 mb-2 bg-gray-900 rounded-2xl overflow-hidden shadow-xl">
                   {/* New Dump option */}
                   <button
                     onClick={(e) => {
@@ -423,20 +516,64 @@ export default function MemeViewer({
               )}
             </div>
 
-            {/* Add button */}
+            {/* Add/Remove button */}
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                handleQuickAdd();
+                if (isInSelectedDump) {
+                  handleRemove();
+                } else {
+                  handleQuickAdd();
+                }
               }}
               disabled={!selectedDumpId || adding}
-              className="px-5 py-2.5 bg-white text-gray-900 font-semibold rounded-full disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95"
+              className={`px-5 py-2.5 font-semibold rounded-full disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 ${
+                isInSelectedDump
+                  ? "bg-red-500 text-white"
+                  : "bg-white text-gray-900"
+              }`}
             >
-              {adding ? "..." : "Add"}
+              {adding ? "..." : isInSelectedDump ? "Remove" : "Add"}
             </button>
           </div>
         </div>
       )}
+
+      {/* Film Strip */}
+      <div className="flex-shrink-0 pb-8 pt-2">
+        <div
+          ref={filmStripRef}
+          className="flex gap-1 px-4 overflow-x-auto scrollbar-hide"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        >
+          {memes.map((meme, index) => (
+            <button
+              key={meme.id}
+              onClick={() => setCurrentIndex(index)}
+              className={`flex-shrink-0 w-14 h-14 rounded-lg overflow-hidden transition-all ${
+                index === currentIndex
+                  ? "ring-2 ring-white scale-110"
+                  : "opacity-50 hover:opacity-75"
+              }`}
+            >
+              {meme.file_type === "video" ? (
+                <video
+                  src={meme.file_url}
+                  className="w-full h-full object-cover"
+                  muted
+                  playsInline
+                />
+              ) : (
+                <img
+                  src={meme.file_url}
+                  alt=""
+                  className="w-full h-full object-cover"
+                />
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Toast notification */}
       {showToast && (

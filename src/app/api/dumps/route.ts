@@ -205,11 +205,16 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const draftsOnly = searchParams.get("drafts") === "true";
+  const allDumps = searchParams.get("all") === "true";
 
   const dumps = await db.getDumpsByUser(user.id);
   const dumpsWithStats = await Promise.all(
     dumps
-      .filter((dump) => !draftsOnly || dump.is_draft)
+      .filter((dump) => {
+        if (allDumps) return true; // Return all dumps
+        if (draftsOnly) return dump.is_draft; // Only drafts
+        return !dump.is_draft; // Only sent (default)
+      })
       .map(async (dump) => {
         const stats = await db.getDumpStats(dump.id);
         const memes = await db.getMemesByDump(dump.id);
