@@ -21,10 +21,16 @@ const NOTE_PLACEHOLDERS = [
   "drop some lore (optional)",
 ];
 
+interface GroupMember {
+  id: string;
+  name: string;
+  email: string;
+}
+
 interface Group {
   id: string;
   name: string;
-  members: { id: string; name: string; email: string }[];
+  members: GroupMember[];
 }
 
 interface SendDumpModalProps {
@@ -43,7 +49,8 @@ export default function SendDumpModal({
   const router = useRouter();
   const [groups, setGroups] = useState<Group[]>([]);
   const [selectedGroupIds, setSelectedGroupIds] = useState<Set<string>>(new Set());
-  const [manualEmails, setManualEmails] = useState("");
+  const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
+  const [manualNames, setManualNames] = useState("");
   const [note, setNote] = useState("");
   const [sending, setSending] = useState(false);
   const [sendingMsg, setSendingMsg] = useState(SENDING_MESSAGES[0]);
@@ -52,7 +59,7 @@ export default function SendDumpModal({
   const [loadingGroups, setLoadingGroups] = useState(true);
   const [showNewGroup, setShowNewGroup] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
-  const [newGroupEmails, setNewGroupEmails] = useState("");
+  const [newGroupMembers, setNewGroupMembers] = useState("");
   const [creatingGroup, setCreatingGroup] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
 
@@ -74,12 +81,13 @@ export default function SendDumpModal({
   useEffect(() => {
     if (!isOpen) {
       setSelectedGroupIds(new Set());
-      setManualEmails("");
+      setExpandedGroupId(null);
+      setManualNames("");
       setNote("");
       setError("");
       setShowNewGroup(false);
       setNewGroupName("");
-      setNewGroupEmails("");
+      setNewGroupMembers("");
     }
   }, [isOpen]);
 
@@ -89,13 +97,13 @@ export default function SendDumpModal({
       return;
     }
 
-    const emails = newGroupEmails
+    const names = newGroupMembers
       .split(/[,\n]/)
-      .map((e) => e.trim().toLowerCase())
-      .filter((e) => e && e.includes("@"));
+      .map((n) => n.trim())
+      .filter((n) => n.length > 0);
 
-    if (emails.length === 0) {
-      setError("Add at least one email to the group");
+    if (names.length === 0) {
+      setError("Add at least one person to the group");
       return;
     }
 
@@ -114,12 +122,12 @@ export default function SendDumpModal({
 
       const { group } = await res.json();
 
-      // Add members
-      for (const email of emails) {
+      // Add members (using name, email is optional)
+      for (const name of names) {
         await fetch(`/api/groups/${group.id}/members`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: email.split("@")[0], email }),
+          body: JSON.stringify({ name, email: "" }),
         });
       }
 
@@ -132,8 +140,8 @@ export default function SendDumpModal({
       // Reset form
       setShowNewGroup(false);
       setNewGroupName("");
-      setNewGroupEmails("");
-    } catch (err) {
+      setNewGroupMembers("");
+    } catch {
       setError("Failed to create group");
     } finally {
       setCreatingGroup(false);
@@ -152,30 +160,30 @@ export default function SendDumpModal({
     });
   }
 
-  function getUniqueRecipients(): string[] {
-    const emails = new Set<string>();
+  function getUniqueRecipients(): { name: string }[] {
+    const recipientNames = new Set<string>();
 
-    // Add emails from selected groups
+    // Add names from selected groups
     for (const groupId of selectedGroupIds) {
       const group = groups.find((g) => g.id === groupId);
       if (group) {
         for (const member of group.members) {
-          emails.add(member.email.toLowerCase());
+          recipientNames.add(member.name);
         }
       }
     }
 
-    // Add manual emails
-    const manualList = manualEmails
+    // Add manual names
+    const manualList = manualNames
       .split(/[,\n]/)
-      .map((e) => e.trim().toLowerCase())
-      .filter((e) => e && e.includes("@"));
+      .map((n) => n.trim())
+      .filter((n) => n.length > 0);
 
-    for (const email of manualList) {
-      emails.add(email);
+    for (const name of manualList) {
+      recipientNames.add(name);
     }
 
-    return Array.from(emails);
+    return Array.from(recipientNames).map(name => ({ name }));
   }
 
   async function handleSend() {
@@ -201,7 +209,7 @@ export default function SendDumpModal({
         body: JSON.stringify({
           memeIds: selectedMemes.map((m) => m.id),
           note: note || null,
-          recipients,
+          recipients, // Array of { name: string }
         }),
       });
 
@@ -229,7 +237,8 @@ export default function SendDumpModal({
 
   if (!isOpen) return null;
 
-  const recipientCount = getUniqueRecipients().length;
+  const allRecipients = getUniqueRecipients();
+  const recipientCount = allRecipients.length;
 
   return (
     <>
@@ -319,35 +328,60 @@ export default function SendDumpModal({
             ) : (
               <div className="space-y-2">
                 {groups.map((group) => (
-                  <button
-                    key={group.id}
-                    onClick={() => toggleGroup(group.id)}
-                    className={`w-full flex items-center justify-between p-3 rounded-xl transition-colors ${
-                      selectedGroupIds.has(group.id)
-                        ? "bg-blue-50 dark:bg-blue-900/30 border-2 border-blue-500"
-                        : "bg-gray-100 dark:bg-gray-800 border-2 border-transparent"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`w-5 h-5 rounded flex items-center justify-center ${
-                          selectedGroupIds.has(group.id)
-                            ? "bg-blue-500 text-white"
-                            : "bg-gray-300 dark:bg-gray-600"
-                        }`}
-                      >
-                        {selectedGroupIds.has(group.id) && (
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                          </svg>
-                        )}
+                  <div key={group.id} className="space-y-1">
+                    <button
+                      onClick={() => toggleGroup(group.id)}
+                      className={`w-full flex items-center justify-between p-3 rounded-xl transition-colors ${
+                        selectedGroupIds.has(group.id)
+                          ? "bg-blue-50 dark:bg-blue-900/30 border-2 border-blue-500"
+                          : "bg-gray-100 dark:bg-gray-800 border-2 border-transparent"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-5 h-5 rounded flex items-center justify-center ${
+                            selectedGroupIds.has(group.id)
+                              ? "bg-blue-500 text-white"
+                              : "bg-gray-300 dark:bg-gray-600"
+                          }`}
+                        >
+                          {selectedGroupIds.has(group.id) && (
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                            </svg>
+                          )}
+                        </div>
+                        <span className="font-medium">{group.name}</span>
                       </div>
-                      <span className="font-medium">{group.name}</span>
-                    </div>
-                    <span className="text-sm text-gray-500">
-                      {group.members.length} {group.members.length === 1 ? "person" : "people"}
-                    </span>
-                  </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setExpandedGroupId(expandedGroupId === group.id ? null : group.id);
+                        }}
+                        className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1"
+                      >
+                        {group.members.length} {group.members.length === 1 ? "person" : "people"}
+                        <svg
+                          className={`w-4 h-4 transition-transform ${expandedGroupId === group.id ? "rotate-180" : ""}`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                    </button>
+                    {/* Expanded members list */}
+                    {expandedGroupId === group.id && group.members.length > 0 && (
+                      <div className="ml-8 pl-3 border-l-2 border-gray-200 dark:border-gray-700 space-y-1">
+                        {group.members.map((member) => (
+                          <div key={member.id} className="text-sm text-gray-600 dark:text-gray-400 py-1">
+                            {member.name}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 ))}
                 {/* New Group - inline form or button */}
                 {showNewGroup ? (
@@ -360,9 +394,9 @@ export default function SendDumpModal({
                       className="w-full px-3 py-2 bg-white dark:bg-gray-800 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                     <textarea
-                      value={newGroupEmails}
-                      onChange={(e) => setNewGroupEmails(e.target.value)}
-                      placeholder="Emails (one per line or comma-separated)"
+                      value={newGroupMembers}
+                      onChange={(e) => setNewGroupMembers(e.target.value)}
+                      placeholder="Names (one per line or comma-separated)"
                       className="w-full px-3 py-2 bg-white dark:bg-gray-800 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
                       rows={2}
                     />
@@ -371,7 +405,7 @@ export default function SendDumpModal({
                         onClick={() => {
                           setShowNewGroup(false);
                           setNewGroupName("");
-                          setNewGroupEmails("");
+                          setNewGroupMembers("");
                         }}
                         className="flex-1 py-2 text-gray-500 text-sm font-medium"
                         disabled={creatingGroup}
@@ -404,13 +438,13 @@ export default function SendDumpModal({
             )}
           </div>
 
-          {/* Manual emails */}
+          {/* Manual names */}
           <div>
-            <h3 className="text-sm font-medium text-gray-500 mb-2">Or add emails:</h3>
+            <h3 className="text-sm font-medium text-gray-500 mb-2">Or add people:</h3>
             <textarea
-              value={manualEmails}
-              onChange={(e) => setManualEmails(e.target.value)}
-              placeholder="email@example.com, another@example.com"
+              value={manualNames}
+              onChange={(e) => setManualNames(e.target.value)}
+              placeholder="Mom, Dad, Best Friend"
               className="w-full px-4 py-3 bg-gray-100 dark:bg-gray-800 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
               rows={2}
             />

@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import SendDumpModal from "./SendDumpModal";
+import { Meme } from "@/lib/db";
 
 interface DumpMeme {
   id: string;
@@ -35,6 +37,7 @@ export default function DumpDrawer({ dumpId, onClose, onUpdate }: DumpDrawerProp
   const [name, setName] = useState("");
   const [editingName, setEditingName] = useState(false);
   const [showMemePicker, setShowMemePicker] = useState(false);
+  const [showSendModal, setShowSendModal] = useState(false);
   const [libraryMemes, setLibraryMemes] = useState<LibraryMeme[]>([]);
   const [copied, setCopied] = useState(false);
   const [generatingLink, setGeneratingLink] = useState(false);
@@ -327,6 +330,19 @@ export default function DumpDrawer({ dumpId, onClose, onUpdate }: DumpDrawerProp
             </div>
           )}
 
+          {/* Send to People - Primary action */}
+          {dump.memes.length > 0 && (
+            <button
+              onClick={() => setShowSendModal(true)}
+              className="w-full py-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white font-bold rounded-2xl mb-4 flex items-center justify-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+              </svg>
+              Send to People
+            </button>
+          )}
+
           {/* Add more memes link */}
           <button
             onClick={() => setShowMemePicker(true)}
@@ -367,6 +383,26 @@ export default function DumpDrawer({ dumpId, onClose, onUpdate }: DumpDrawerProp
             </div>
           </div>
         </div>
+      )}
+
+      {/* Send Modal */}
+      {dump && (
+        <SendDumpModal
+          isOpen={showSendModal}
+          onClose={() => setShowSendModal(false)}
+          selectedMemes={dump.memes.map(m => ({
+            id: m.id,
+            file_url: m.file_url,
+            file_type: m.file_type,
+            user_id: "",
+            created_at: "",
+          } as Meme))}
+          onSent={() => {
+            setShowSendModal(false);
+            onUpdate?.();
+            onClose();
+          }}
+        />
       )}
     </div>
   );
