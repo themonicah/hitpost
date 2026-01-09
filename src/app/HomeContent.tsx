@@ -10,26 +10,17 @@ import AddToDumpModal from "@/components/AddToDumpModal";
 
 interface HomeContentProps {
   userId: string;
-  onSelectionChange?: (count: number, onAddToDump: () => void) => void;
 }
 
-export default function HomeContent({ userId, onSelectionChange }: HomeContentProps) {
+export default function HomeContent({ userId }: HomeContentProps) {
   const [memes, setMemes] = useState<Meme[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const [showAddToDump, setShowAddToDump] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Notify parent about selection changes
-  useEffect(() => {
-    if (onSelectionChange) {
-      onSelectionChange(selectedIds.size, () => setShowAddToDump(true));
-    }
-  }, [selectedIds.size, onSelectionChange]);
 
   const fetchMemes = useCallback(async () => {
     setError(null);
@@ -72,16 +63,6 @@ export default function HomeContent({ userId, onSelectionChange }: HomeContentPr
     }
   }
 
-  function toggleSelectMode() {
-    setSelectMode(!selectMode);
-    setSelectedIds(new Set());
-  }
-
-  function handleAddToDump() {
-    // Open modal to choose new or existing dump
-    setShowAddToDump(true);
-  }
-
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -95,7 +76,7 @@ export default function HomeContent({ userId, onSelectionChange }: HomeContentPr
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
         <div className="text-5xl mb-4">😵</div>
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">
           Oops, something went wrong
         </h3>
         <p className="text-gray-500 mb-6">{error}</p>
@@ -155,43 +136,27 @@ export default function HomeContent({ userId, onSelectionChange }: HomeContentPr
         className="hidden"
       />
 
-      {/* Header with count and actions */}
+      {/* Header with count and upload */}
       <div className="flex items-center justify-between">
         <p className="text-sm text-gray-500">
           {memes.length} meme{memes.length !== 1 ? "s" : ""}
           {uploading && <span className="ml-2 text-blue-500">uploading...</span>}
         </p>
-        <div className="flex items-center gap-2">
-          {selectMode && selectedIds.size > 0 && (
-            <button
-              onClick={handleAddToDump}
-              className="px-4 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-full text-sm font-medium min-h-[44px]"
-            >
-              Add to Dump ({selectedIds.size})
-            </button>
-          )}
-          <button
-            onClick={toggleSelectMode}
-            className={`px-4 py-2.5 rounded-full text-sm font-medium transition-colors min-h-[44px] ${
-              selectMode
-                ? "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
-                : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
-            }`}
-          >
-            {selectMode ? "Cancel" : "Select"}
-          </button>
-        </div>
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          className="w-10 h-10 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center text-gray-600 transition-colors"
+          aria-label="Upload memes"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+        </button>
       </div>
 
-      {/* Meme Grid with integrated add button */}
+      {/* Meme Grid */}
       <MemeGrid
         memes={memes}
-        selectable={selectMode}
-        selectedIds={selectedIds}
-        onSelectionChange={setSelectedIds}
-        onDelete={selectMode ? undefined : handleDelete}
-        onMemeClick={selectMode ? undefined : (index) => setViewerIndex(index)}
-        onAddClick={() => fileInputRef.current?.click()}
+        onMemeClick={(index) => setViewerIndex(index)}
       />
 
       {/* Meme Viewer */}
@@ -199,13 +164,16 @@ export default function HomeContent({ userId, onSelectionChange }: HomeContentPr
         <MemeViewer
           memes={memes}
           initialIndex={viewerIndex}
-          onClose={() => setViewerIndex(null)}
+          onClose={() => {
+            setViewerIndex(null);
+            // If there are selected memes, show the Add to Dump modal
+            if (selectedIds.size > 0) {
+              setShowAddToDump(true);
+            }
+          }}
           selectable={true}
           selectedIds={selectedIds}
-          onSelectionChange={(ids) => {
-            setSelectedIds(ids);
-            if (ids.size > 0) setSelectMode(true);
-          }}
+          onSelectionChange={setSelectedIds}
           onDelete={handleDelete}
         />
       )}
@@ -215,12 +183,10 @@ export default function HomeContent({ userId, onSelectionChange }: HomeContentPr
         isOpen={showAddToDump}
         onClose={() => {
           setShowAddToDump(false);
-          setSelectMode(false);
           setSelectedIds(new Set());
         }}
         selectedMemes={selectedMemes}
         onComplete={() => {
-          setSelectMode(false);
           setSelectedIds(new Set());
         }}
       />

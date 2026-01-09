@@ -177,60 +177,51 @@ export default function MemeViewer({
 
   return (
     <div
-      className="fixed inset-0 z-[100] bg-black"
-      style={{ backgroundColor: `rgba(0, 0, 0, ${opacity})` }}
+      className="fixed inset-0 z-[100]"
+      style={{ backgroundColor: `rgba(0, 0, 0, ${0.9 * opacity})` }}
     >
       {/* Header bar */}
-      <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-4 pt-14 pb-4 bg-gradient-to-b from-black/80 to-transparent">
-        {/* Counter */}
-        <div className="text-white/70 text-sm font-medium">
-          {currentIndex + 1} / {memes.length}
-        </div>
+      <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-4 pt-14 pb-4">
+        {/* Close button - left side */}
+        <button
+          onClick={onClose}
+          className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-white text-xl transition-all duration-200 active:scale-95"
+        >
+          ×
+        </button>
 
-        {/* Center actions */}
-        <div className="flex items-center gap-3">
-          {selectable && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleSelection();
-              }}
-              className={`px-5 py-2 rounded-full font-semibold transition-all duration-200 active:scale-95 ${
-                isSelected
-                  ? "bg-blue-500 text-white"
-                  : "bg-white/20 text-white"
-              }`}
-            >
-              {isSelected ? "✓ Selected" : "Select"}
-            </button>
-          )}
-        </div>
-
-        {/* Right actions */}
-        <div className="flex items-center gap-2">
-          {/* Delete button */}
-          {onDelete && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowDeleteConfirm(true);
-              }}
-              className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-white transition-all duration-200 active:scale-95"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-            </button>
-          )}
-
-          {/* Close button */}
+        {/* Center - Add to Dump */}
+        {selectable && (
           <button
-            onClick={onClose}
-            className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-white text-xl transition-all duration-200 active:scale-95"
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleSelection();
+            }}
+            className={`px-5 py-2.5 rounded-full font-semibold transition-all duration-200 active:scale-95 ${
+              isSelected
+                ? "bg-blue-500 text-white"
+                : "bg-white/20 text-white"
+            }`}
           >
-            ×
+            {isSelected ? "✓ Added" : "Add to Dump"}
           </button>
-        </div>
+        )}
+
+        {/* Right - Delete button */}
+        {onDelete && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowDeleteConfirm(true);
+            }}
+            className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-white transition-all duration-200 active:scale-95"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </button>
+        )}
+        {!onDelete && <div className="w-10" />}
       </div>
 
       {/* Main content */}
@@ -320,16 +311,6 @@ export default function MemeViewer({
           →
         </button>
       )}
-
-      {/* Keyboard hint */}
-      <div className="absolute bottom-8 pb-safe left-1/2 -translate-x-1/2 text-white/40 text-xs hidden sm:block">
-        Use arrow keys to navigate, Esc to close
-      </div>
-
-      {/* Swipe hint (mobile) */}
-      <div className="absolute bottom-8 pb-safe left-1/2 -translate-x-1/2 text-white/40 text-xs sm:hidden">
-        Swipe to navigate • Drag down to close
-      </div>
 
       {/* Delete confirmation modal */}
       {showDeleteConfirm && (

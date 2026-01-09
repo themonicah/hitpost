@@ -14,7 +14,7 @@ export default async function Home() {
   if (!user) {
     return (
       <AppShell>
-        <main className="min-h-screen flex flex-col items-center justify-center p-6 bg-gradient-to-b from-sunny/10 via-white to-white dark:from-sunny/5 dark:via-gray-950 dark:to-gray-950">
+        <main className="min-h-screen flex flex-col items-center justify-center p-6 bg-gradient-to-b from-sunny/10 via-white to-white">
           <div className="w-full max-w-sm space-y-6">
             {/* Welcome illustration */}
             <div className="flex justify-center animate-float">
@@ -31,7 +31,7 @@ export default async function Home() {
               <h1 className="text-4xl font-bold mb-3 bg-gradient-to-r from-sunny-dark via-peachy to-coral bg-clip-text text-transparent">
                 HitPost
               </h1>
-              <p className="text-gray-600 dark:text-gray-400 text-lg">
+              <p className="text-gray-600 text-lg">
                 Save memes. Send dumps. Make friends laugh.
               </p>
             </div>
@@ -51,7 +51,7 @@ export default async function Home() {
   // Show meme library when logged in
   return (
     <AppShell>
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+      <div className="min-h-screen bg-gray-50">
         <Header email={user.email} title="Memes" />
         <main className="max-w-4xl mx-auto px-4 py-4">
           <HomeContent userId={user.id} />

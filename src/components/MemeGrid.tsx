@@ -30,7 +30,6 @@ interface MemeGridProps {
   onDelete?: (id: string) => void;
   onMemeClick?: (index: number) => void;
   maxSelections?: number;
-  onAddClick?: () => void;
 }
 
 export default function MemeGrid({
@@ -41,7 +40,6 @@ export default function MemeGrid({
   onDelete,
   onMemeClick,
   maxSelections = 50,
-  onAddClick,
 }: MemeGridProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [heartId, setHeartId] = useState<string | null>(null);
@@ -94,17 +92,6 @@ export default function MemeGrid({
 
   return (
     <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-      {/* Add button as first item */}
-      {onAddClick && (
-        <button
-          onClick={onAddClick}
-          aria-label="Upload memes"
-          className="aspect-square rounded-xl bg-white/10 dark:bg-white/5 border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center transition-all active:scale-95 hover:border-gray-400 dark:hover:border-gray-600 min-h-[80px]"
-        >
-          <span className="text-3xl text-gray-400">+</span>
-          <span className="text-xs text-gray-400 mt-1">Add</span>
-        </button>
-      )}
       {memes.map((meme, index) => {
         const isSelected = selectedIds.has(meme.id);
         const isDeleting = deletingId === meme.id;
@@ -116,9 +103,9 @@ export default function MemeGrid({
           <button
             key={meme.id}
             aria-label={`${meme.file_type === "video" ? "Video" : "Image"} meme ${index + 1}${isSelected ? ", selected" : ""}`}
-            className={`relative aspect-square overflow-hidden rounded-xl bg-gray-100 dark:bg-gray-800 transition-all duration-150 min-h-[80px] ${
+            className={`relative aspect-square overflow-hidden rounded-xl bg-gray-100 shadow-sm border border-gray-200 transition-all duration-150 min-h-[80px] ${
               selectable || onMemeClick ? "cursor-pointer" : ""
-            } ${isSelected ? "ring-2 ring-blue-500 ring-offset-1 ring-offset-black" : ""} ${
+            } ${isSelected ? "ring-2 ring-blue-500 ring-offset-1" : ""} ${
               isDeleting ? "opacity-50" : ""
             } ${isShaking ? "animate-shake" : ""}`}
             onClick={() => {
