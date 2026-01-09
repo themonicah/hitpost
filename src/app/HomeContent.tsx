@@ -166,7 +166,7 @@ export default function HomeContent({ userId }: HomeContentProps) {
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 pb-24">
       {/* Hidden file input */}
       <input
         ref={fileInputRef}
@@ -176,23 +176,6 @@ export default function HomeContent({ userId }: HomeContentProps) {
         onChange={(e) => handleUpload(e.target.files)}
         className="hidden"
       />
-
-      {/* Header with count and upload */}
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-gray-500">
-          {memes.length} meme{memes.length !== 1 ? "s" : ""}
-          {uploading && <span className="ml-2 text-blue-500">uploading...</span>}
-        </p>
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          className="w-10 h-10 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center text-gray-600 transition-colors"
-          aria-label="Upload memes"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-        </button>
-      </div>
 
       {/* Draft Dumps Section */}
       {draftDumps.length > 0 && (
@@ -204,6 +187,22 @@ export default function HomeContent({ userId }: HomeContentProps) {
         memes={memes}
         onMemeClick={(index) => setViewerIndex(index)}
       />
+
+      {/* Floating upload button */}
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30">
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+          className="w-16 h-16 bg-gradient-to-br from-amber-600 to-amber-800 hover:from-amber-500 hover:to-amber-700 rounded-full flex items-center justify-center shadow-lg shadow-amber-900/30 transition-all active:scale-95 disabled:opacity-50"
+          aria-label="Upload memes"
+        >
+          {uploading ? (
+            <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+          ) : (
+            <span className="text-3xl">💩</span>
+          )}
+        </button>
+      </div>
 
       {/* Meme Viewer */}
       {viewerIndex !== null && (

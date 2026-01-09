@@ -19,7 +19,7 @@ export default function LoggedInHome({ userId, userEmail }: LoggedInHomeProps) {
       <Header
         email={userEmail}
         userId={userId}
-        title="Memes"
+        title="HitPost"
         onShowQRCode={() => setShowQRCode(true)}
       />
       <main className="max-w-4xl mx-auto px-4 py-4">
