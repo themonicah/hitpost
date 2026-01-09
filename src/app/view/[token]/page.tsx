@@ -50,6 +50,8 @@ export default async function ViewPage({ params }: ViewPageProps) {
       recipientName={recipient.name}
       recipientNote={recipient.recipient_note}
       existingReactions={reactionsMap}
+      claimCode={recipient.claim_code}
+      isClaimed={!!recipient.claimed_at}
     />
   );
 }
