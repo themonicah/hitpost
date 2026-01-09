@@ -3,11 +3,19 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Meme } from "@/lib/db";
 
+interface Dump {
+  id: string;
+  note: string | null;
+  meme_count: number;
+  is_draft: boolean;
+}
+
 interface MemeViewerProps {
   memes: Meme[];
   initialIndex: number;
   onClose: () => void;
   onAddToDump?: (meme: Meme) => void;
+  onNewDump?: (meme: Meme) => void;
   onDelete?: (memeId: string) => void;
 }
 
@@ -16,6 +24,7 @@ export default function MemeViewer({
   initialIndex,
   onClose,
   onAddToDump,
+  onNewDump,
   onDelete,
 }: MemeViewerProps) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
@@ -29,6 +38,25 @@ export default function MemeViewer({
   const dragStartY = useRef<number | null>(null);
   const [videoLoading, setVideoLoading] = useState(true);
   const [videoError, setVideoError] = useState(false);
+
+  // Quick-add state
+  const [dumps, setDumps] = useState<Dump[]>([]);
+  const [selectedDumpId, setSelectedDumpId] = useState<string | null>(null);
+  const [showDumpPicker, setShowDumpPicker] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
+
+  // Fetch dumps for quick-add
+  useEffect(() => {
+    fetch("/api/dumps?drafts=true")
+      .then((r) => r.json())
+      .then((data) => {
+        const draftDumps = (data.dumps || []).filter((d: Dump) => d.is_draft);
+        setDumps(draftDumps);
+      })
+      .catch(console.error);
+  }, []);
 
   // Reset video state when meme changes
   useEffect(() => {
@@ -96,6 +124,34 @@ export default function MemeViewer({
       console.error("Failed to delete:", err);
     } finally {
       setDeleting(false);
+    }
+  }
+
+  // Quick-add to existing dump
+  async function handleQuickAdd() {
+    if (!selectedDumpId) return;
+    setAdding(true);
+    try {
+      const res = await fetch("/api/dumps", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          memeIds: [currentMeme.id],
+          existingDumpId: selectedDumpId,
+          isDraft: true,
+          recipients: [],
+        }),
+      });
+      if (res.ok) {
+        const selectedDump = dumps.find((d) => d.id === selectedDumpId);
+        setToastMessage(`Added to "${selectedDump?.note || "Untitled"}"`);
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 2000);
+      }
+    } catch (err) {
+      console.error("Failed to add:", err);
+    } finally {
+      setAdding(false);
     }
   }
 
@@ -174,18 +230,8 @@ export default function MemeViewer({
           ×
         </button>
 
-        {/* Center - Add to Dump */}
-        {onAddToDump && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onAddToDump(currentMeme);
-            }}
-            className="px-5 py-2.5 rounded-full font-semibold transition-all duration-200 active:scale-95 bg-white/20 text-white hover:bg-white/30"
-          >
-            Add to Dump
-          </button>
-        )}
+        {/* Center spacer */}
+        <div />
 
         {/* Right - Delete button */}
         {onDelete && (
@@ -201,7 +247,7 @@ export default function MemeViewer({
             </svg>
           </button>
         )}
-        {!onDelete && !onAddToDump && <div className="w-10" />}
+        {!onDelete && <div className="w-10" />}
       </div>
 
       {/* Main content */}
@@ -290,6 +336,115 @@ export default function MemeViewer({
         >
           →
         </button>
+      )}
+
+      {/* Floating Quick-Add Bar */}
+      {(onAddToDump || onNewDump) && (
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10">
+          <div className="flex items-center gap-2 bg-white/20 backdrop-blur-md rounded-full p-1.5">
+            {/* Dump selector dropdown */}
+            <div className="relative">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowDumpPicker(!showDumpPicker);
+                }}
+                className="flex items-center gap-2 px-4 py-2.5 text-white font-medium min-w-[140px] justify-between"
+              >
+                <span className="truncate">
+                  {selectedDumpId
+                    ? dumps.find((d) => d.id === selectedDumpId)?.note || "Untitled"
+                    : "Select Dump"}
+                </span>
+                <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {/* Dropdown menu */}
+              {showDumpPicker && (
+                <div className="absolute bottom-full left-0 mb-2 w-56 bg-gray-900 rounded-2xl overflow-hidden shadow-xl">
+                  {/* New Dump option */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowDumpPicker(false);
+                      if (onNewDump) {
+                        onNewDump(currentMeme);
+                      } else if (onAddToDump) {
+                        onAddToDump(currentMeme);
+                      }
+                    }}
+                    className="w-full px-4 py-3 text-left text-white hover:bg-white/10 flex items-center gap-3 border-b border-white/10"
+                  >
+                    <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
+                      <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                    </div>
+                    <span className="font-medium">New Dump</span>
+                  </button>
+
+                  {/* Existing dumps */}
+                  <div className="max-h-48 overflow-y-auto">
+                    {dumps.map((dump) => (
+                      <button
+                        key={dump.id}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedDumpId(dump.id);
+                          setShowDumpPicker(false);
+                        }}
+                        className={`w-full px-4 py-3 text-left text-white hover:bg-white/10 flex items-center gap-3 ${
+                          selectedDumpId === dump.id ? "bg-white/10" : ""
+                        }`}
+                      >
+                        <div className="w-8 h-8 bg-amber-600 rounded-lg flex items-center justify-center">
+                          <span className="text-sm">💩</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate">{dump.note || "Untitled"}</p>
+                          <p className="text-xs text-white/60">{dump.meme_count} memes</p>
+                        </div>
+                        {selectedDumpId === dump.id && (
+                          <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </button>
+                    ))}
+                    {dumps.length === 0 && (
+                      <div className="px-4 py-6 text-center text-white/40 text-sm">
+                        No draft dumps yet
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Add button */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleQuickAdd();
+              }}
+              disabled={!selectedDumpId || adding}
+              className="px-5 py-2.5 bg-white text-gray-900 font-semibold rounded-full disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95"
+            >
+              {adding ? "..." : "Add"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Toast notification */}
+      {showToast && (
+        <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-20 animate-fadeIn">
+          <div className="bg-green-500 text-white px-4 py-2 rounded-full font-medium shadow-lg">
+            {toastMessage}
+          </div>
+        </div>
       )}
 
       {/* Delete confirmation modal */}

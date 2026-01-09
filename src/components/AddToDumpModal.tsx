@@ -5,7 +5,7 @@ import { Meme, UserConnection } from "@/lib/db";
 import { useRouter } from "next/navigation";
 import Confetti from "./Confetti";
 import FunLoader from "./FunLoader";
-import Image from "next/image";
+import MemePicker from "./MemePicker";
 
 interface Dump {
   id: string;
@@ -14,6 +14,7 @@ interface Dump {
   meme_count: number;
   is_draft: boolean;
   preview_url?: string;
+  preview_urls?: string[];
 }
 
 interface Group {
@@ -30,7 +31,14 @@ interface AddToDumpModalProps {
   onComplete?: () => void;
 }
 
-type View = "main" | "pick-dump" | "recipients";
+// Format name as "First L." or just "Name" if single word
+function formatName(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0];
+  const firstName = parts[0];
+  const lastName = parts[parts.length - 1];
+  return `${firstName} ${lastName.charAt(0).toUpperCase()}.`;
+}
 
 export default function AddToDumpModal({
   isOpen,
@@ -40,73 +48,104 @@ export default function AddToDumpModal({
   onComplete,
 }: AddToDumpModalProps) {
   const router = useRouter();
-  const [view, setView] = useState<View>("main");
-  const [drafts, setDrafts] = useState<Dump[]>([]);
-  const [selectedDump, setSelectedDump] = useState<Dump | null>(null);
-  const [comment, setComment] = useState("");
+  const [existingDump, setExistingDump] = useState<Dump | null>(null);
+  const [dumpName, setDumpName] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [showConfetti, setShowConfetti] = useState(false);
+  const [showSendConfirm, setShowSendConfirm] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+
+  // Memes in the dump (selected memes + existing dump memes)
+  const [dumpMemes, setDumpMemes] = useState<Meme[]>([]);
 
   // Recipients state
   const [groups, setGroups] = useState<Group[]>([]);
   const [connections, setConnections] = useState<UserConnection[]>([]);
   const [selectedGroupIds, setSelectedGroupIds] = useState<Set<string>>(new Set());
   const [selectedConnectionIds, setSelectedConnectionIds] = useState<Set<string>>(new Set());
-  const [manualNames, setManualNames] = useState("");
+  const [showRecipientPicker, setShowRecipientPicker] = useState(false);
+  const [showMemePicker, setShowMemePicker] = useState(false);
+  const [newRecipientName, setNewRecipientName] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Fetch drafts, groups, and connections when modal opens
+  // Track if this is a new dump or existing
+  const isNewDump = !preselectedDumpId;
+
+  // Fetch data when modal opens
   useEffect(() => {
     if (isOpen) {
       setLoading(true);
+      setDumpMemes(selectedMemes);
+      setHasUnsavedChanges(false);
+
       Promise.all([
-        fetch("/api/dumps?drafts=true").then(r => r.json()),
+        preselectedDumpId
+          ? fetch(`/api/dumps/${preselectedDumpId}`).then(r => r.json())
+          : Promise.resolve(null),
         fetch("/api/groups").then(r => r.json()),
         fetch("/api/connections").then(r => r.json()),
       ])
-        .then(([dumpsData, groupsData, connectionsData]) => {
-          const allDrafts = dumpsData.dumps?.filter((d: Dump) => d.is_draft) || [];
-          setDrafts(allDrafts);
+        .then(([dumpData, groupsData, connectionsData]) => {
           setGroups(groupsData.groups || []);
           setConnections(connectionsData.connections || []);
 
-          // Preselect dump if ID provided
-          if (preselectedDumpId) {
-            const dump = allDrafts.find((d: Dump) => d.id === preselectedDumpId);
-            if (dump) {
-              setSelectedDump(dump);
-            }
+          if (dumpData?.dump) {
+            setExistingDump(dumpData.dump);
+            setDumpName(dumpData.dump.note || "");
+            // Merge existing dump memes with selected memes
+            const existingMemes = dumpData.memes || [];
+            const mergedMemes = [...existingMemes];
+            selectedMemes.forEach(m => {
+              if (!mergedMemes.find((em: Meme) => em.id === m.id)) {
+                mergedMemes.push(m);
+              }
+            });
+            setDumpMemes(mergedMemes);
+
+            // Pre-select existing recipients
+            // This would require loading recipient data too
+          } else {
+            setExistingDump(null);
+            setDumpName("");
           }
         })
         .catch(console.error)
         .finally(() => setLoading(false));
     }
-  }, [isOpen, preselectedDumpId]);
+  }, [isOpen, preselectedDumpId, selectedMemes]);
 
   // Reset state when modal closes
   useEffect(() => {
     if (!isOpen) {
-      setView("main");
-      setSelectedDump(null);
-      setComment("");
+      setExistingDump(null);
+      setDumpName("");
+      setDumpMemes([]);
       setSelectedGroupIds(new Set());
       setSelectedConnectionIds(new Set());
-      setManualNames("");
+      setShowRecipientPicker(false);
+      setShowMemePicker(false);
+      setNewRecipientName("");
       setError("");
+      setHasUnsavedChanges(false);
+      setShowDiscardConfirm(false);
+      setShowSendConfirm(false);
     }
   }, [isOpen]);
 
-  function getUniqueRecipients(): { name: string }[] {
-    const names = new Set<string>();
+  function getSelectedRecipients(): { name: string; connectionId?: string }[] {
+    const recipients: { name: string; connectionId?: string }[] = [];
 
     // Add from selected groups
     for (const groupId of selectedGroupIds) {
       const group = groups.find((g) => g.id === groupId);
       if (group) {
         for (const member of group.members) {
-          names.add(member.name);
+          if (!recipients.find(r => r.name === member.name)) {
+            recipients.push({ name: member.name });
+          }
         }
       }
     }
@@ -114,45 +153,47 @@ export default function AddToDumpModal({
     // Add from selected connections
     for (const connectionId of selectedConnectionIds) {
       const connection = connections.find((c) => c.id === connectionId);
-      if (connection) {
-        names.add(connection.name);
+      if (connection && !recipients.find(r => r.name === connection.name)) {
+        recipients.push({ name: connection.name, connectionId: connection.id });
       }
     }
 
-    // Add manual names
-    const manualList = manualNames
-      .split(/[,\n]/)
-      .map((n) => n.trim())
-      .filter((n) => n.length > 0);
-    for (const name of manualList) {
-      names.add(name);
-    }
-
-    return Array.from(names).map(name => ({ name }));
+    return recipients;
   }
 
-  async function handleSend() {
+  const recipientCount = getSelectedRecipients().length;
+  const hasMemes = dumpMemes.length > 0;
+  const canSaveDraft = hasMemes;
+  const canSend = hasMemes && recipientCount > 0;
+
+  // Action button text
+  const actionButtonText = canSend ? "Send Now" : "Save Draft";
+  const isActionDisabled = saving || !hasMemes;
+
+  async function handleAction() {
+    if (canSend) {
+      // Show confirmation before sending
+      setShowSendConfirm(true);
+    } else {
+      // Save as draft
+      await handleSave(true);
+    }
+  }
+
+  async function handleSave(isDraft: boolean) {
     setSaving(true);
     setError("");
 
     try {
-      const recipients = getUniqueRecipients();
-
-      if (recipients.length === 0) {
-        setError("Pick someone to send to");
-        setSaving(false);
-        return;
-      }
-
       const res = await fetch("/api/dumps", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          memeIds: selectedMemes.map((m) => m.id),
-          note: comment || null,
-          recipients,
-          isDraft: false,
-          existingDumpId: selectedDump?.id || null,
+          memeIds: dumpMemes.map((m) => m.id),
+          note: dumpName || null,
+          recipients: isDraft ? [] : getSelectedRecipients(),
+          isDraft,
+          existingDumpId: existingDump?.id || null,
         }),
       });
 
@@ -163,392 +204,103 @@ export default function AddToDumpModal({
 
       const data = await res.json();
 
-      setShowConfetti(true);
-      setTimeout(() => {
+      if (!isDraft) {
+        setShowConfetti(true);
+        setTimeout(() => {
+          onComplete?.();
+          onClose();
+          setShowConfetti(false);
+          router.push(`/dumps/${data.dumpId}`);
+        }, 1000);
+      } else {
         onComplete?.();
         onClose();
-        setShowConfetti(false);
-        router.push(`/dumps/${data.dumpId}`);
-      }, 1000);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setSaving(false);
+      setShowSendConfirm(false);
     }
   }
 
-  if (!isOpen) return null;
+  function handleClose() {
+    if (hasUnsavedChanges) {
+      setShowDiscardConfirm(true);
+    } else {
+      onClose();
+    }
+  }
 
-  const recipientCount = getUniqueRecipients().length;
-  const dumpLabel = selectedDump ? (selectedDump.note || "Untitled") : "New Dump";
+  function toggleConnection(connectionId: string) {
+    setSelectedConnectionIds(prev => {
+      const next = new Set(prev);
+      if (next.has(connectionId)) next.delete(connectionId);
+      else next.add(connectionId);
+      return next;
+    });
+    setHasUnsavedChanges(true);
+  }
+
+  function toggleGroup(groupId: string) {
+    setSelectedGroupIds(prev => {
+      const next = new Set(prev);
+      if (next.has(groupId)) next.delete(groupId);
+      else next.add(groupId);
+      return next;
+    });
+    setHasUnsavedChanges(true);
+  }
+
+  if (!isOpen) return null;
 
   // Connected users (with user_id linked)
   const connectedUsers = connections.filter(c => c.connected_user_id);
   // Pending connections (without user_id)
   const pendingConnections = connections.filter(c => !c.connected_user_id);
 
-  // DUMP PICKER VIEW
-  if (view === "pick-dump") {
-    return (
-      <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center animate-fadeIn">
-        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setView("main")} />
-
-        <div className="relative w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl max-h-[90vh] overflow-hidden flex flex-col animate-slideUp sm:animate-scaleIn">
-          {/* Header */}
-          <div className="flex items-center px-4 py-3 border-b border-gray-200">
-            <button
-              onClick={() => setView("main")}
-              className="w-10 h-10 -ml-2 flex items-center justify-center text-blue-500"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-            <h2 className="flex-1 text-center font-semibold">Choose Dump</h2>
-            <div className="w-10" />
-          </div>
-
-          {/* Content */}
-          <div className="flex-1 overflow-y-auto">
-            {/* New Dump option */}
-            <button
-              onClick={() => {
-                setSelectedDump(null);
-                setView("main");
-              }}
-              className="w-full flex items-center gap-3 px-4 py-3 border-b border-gray-100 hover:bg-gray-50 transition-colors"
-            >
-              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center text-blue-500">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-              </div>
-              <span className="font-medium">New Dump</span>
-              {!selectedDump && (
-                <svg className="w-5 h-5 text-blue-500 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              )}
-            </button>
-
-            {/* Existing drafts */}
-            {drafts.map((draft) => (
-              <button
-                key={draft.id}
-                onClick={() => {
-                  setSelectedDump(draft);
-                  setView("main");
-                }}
-                className="w-full flex items-center gap-3 px-4 py-3 border-b border-gray-100 hover:bg-gray-50 transition-colors"
-              >
-                <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
-                  {draft.preview_url ? (
-                    <img src={draft.preview_url} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-lg">📦</span>
-                  )}
-                </div>
-                <div className="flex-1 text-left">
-                  <p className="font-medium">{draft.note || "Untitled"}</p>
-                  <p className="text-sm text-gray-500">{draft.meme_count} memes</p>
-                </div>
-                {selectedDump?.id === draft.id && (
-                  <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                )}
-              </button>
-            ))}
-
-            {drafts.length === 0 && (
-              <div className="px-4 py-8 text-center text-gray-500">
-                No draft dumps yet
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // RECIPIENTS VIEW - Slides in from right
-  if (view === "recipients") {
-    return (
-      <>
-        <Confetti active={showConfetti} />
-        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center animate-fadeIn">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setView("main")} />
-
-          <div
-            ref={containerRef}
-            className="relative w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl max-h-[90vh] overflow-hidden flex flex-col animate-slideInRight sm:animate-scaleIn"
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
-              <button
-                onClick={() => setView("main")}
-                className="text-blue-500 font-medium min-w-[60px]"
-                disabled={saving}
-              >
-                Back
-              </button>
-              <h2 className="font-semibold">Send To</h2>
-              <button
-                onClick={handleSend}
-                disabled={saving || recipientCount === 0}
-                className="text-blue-500 font-semibold min-w-[60px] text-right disabled:text-gray-300"
-              >
-                {saving ? "..." : "Save"}
-              </button>
-            </div>
-
-            {/* Content */}
-            <div className="flex-1 overflow-y-auto">
-              {/* Connections section */}
-              {connectedUsers.length > 0 && (
-                <div className="px-4 pt-4">
-                  <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                    Connected
-                  </h3>
-                  <div className="bg-gray-50 rounded-2xl overflow-hidden">
-                    {connectedUsers.map((connection, index) => (
-                      <button
-                        key={connection.id}
-                        onClick={() => {
-                          setSelectedConnectionIds(prev => {
-                            const next = new Set(prev);
-                            if (next.has(connection.id)) next.delete(connection.id);
-                            else next.add(connection.id);
-                            return next;
-                          });
-                        }}
-                        className={`w-full flex items-center justify-between px-4 py-3 ${
-                          index < connectedUsers.length - 1 ? "border-b border-gray-200" : ""
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-gradient-to-br from-electric to-lavender rounded-full flex items-center justify-center">
-                            <span className="text-white font-semibold text-sm">
-                              {connection.name.charAt(0).toUpperCase()}
-                            </span>
-                          </div>
-                          <span className="font-medium">{connection.name}</span>
-                        </div>
-                        <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                          selectedConnectionIds.has(connection.id) ? "bg-blue-500" : "bg-gray-200"
-                        }`}>
-                          {selectedConnectionIds.has(connection.id) && (
-                            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                            </svg>
-                          )}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Pending connections */}
-              {pendingConnections.length > 0 && (
-                <div className="px-4 pt-4">
-                  <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                    Pending
-                  </h3>
-                  <div className="bg-gray-50 rounded-2xl overflow-hidden">
-                    {pendingConnections.map((connection, index) => (
-                      <button
-                        key={connection.id}
-                        onClick={() => {
-                          setSelectedConnectionIds(prev => {
-                            const next = new Set(prev);
-                            if (next.has(connection.id)) next.delete(connection.id);
-                            else next.add(connection.id);
-                            return next;
-                          });
-                        }}
-                        className={`w-full flex items-center justify-between px-4 py-3 ${
-                          index < pendingConnections.length - 1 ? "border-b border-gray-200" : ""
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
-                            <span className="text-gray-500 font-semibold text-sm">
-                              {connection.name.charAt(0).toUpperCase()}
-                            </span>
-                          </div>
-                          <div className="text-left">
-                            <span className="font-medium block">{connection.name}</span>
-                            <span className="text-xs text-gray-400">Hasn&apos;t installed app yet</span>
-                          </div>
-                        </div>
-                        <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                          selectedConnectionIds.has(connection.id) ? "bg-blue-500" : "bg-gray-200"
-                        }`}>
-                          {selectedConnectionIds.has(connection.id) && (
-                            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                            </svg>
-                          )}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Groups */}
-              {groups.length > 0 && (
-                <div className="px-4 pt-4">
-                  <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                    Groups
-                  </h3>
-                  <div className="bg-gray-50 rounded-2xl overflow-hidden">
-                    {groups.map((group, index) => (
-                      <button
-                        key={group.id}
-                        onClick={() => {
-                          setSelectedGroupIds(prev => {
-                            const next = new Set(prev);
-                            if (next.has(group.id)) next.delete(group.id);
-                            else next.add(group.id);
-                            return next;
-                          });
-                        }}
-                        className={`w-full flex items-center justify-between px-4 py-3 ${
-                          index < groups.length - 1 ? "border-b border-gray-200" : ""
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-sunny/20 rounded-full flex items-center justify-center">
-                            <span className="text-lg">👥</span>
-                          </div>
-                          <div className="text-left">
-                            <span className="font-medium block">{group.name}</span>
-                            <span className="text-xs text-gray-400">{group.members.length} people</span>
-                          </div>
-                        </div>
-                        <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                          selectedGroupIds.has(group.id) ? "bg-blue-500" : "bg-gray-200"
-                        }`}>
-                          {selectedGroupIds.has(group.id) && (
-                            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                            </svg>
-                          )}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Manual names entry */}
-              <div className="px-4 pt-4">
-                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                  Add Someone New
-                </h3>
-                <div className="bg-gray-50 rounded-2xl p-4">
-                  <textarea
-                    value={manualNames}
-                    onChange={(e) => setManualNames(e.target.value)}
-                    placeholder="Mom, Dad, Best Friend..."
-                    className="w-full px-3 py-2 bg-white rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                    rows={2}
-                  />
-                </div>
-              </div>
-
-              {error && (
-                <p className="text-red-500 text-sm text-center px-4 pt-4">{error}</p>
-              )}
-
-              {/* Bottom illustration and send button */}
-              <div className="p-4 pb-safe">
-                <div className="bg-gradient-to-br from-sunny/10 to-peachy/10 rounded-2xl p-6 text-center">
-                  <div className="flex justify-center mb-3">
-                    <Image
-                      src="/illustrations/send-dump.svg"
-                      alt="Send dump"
-                      width={120}
-                      height={80}
-                      className="opacity-80"
-                      onError={(e) => {
-                        // Fallback to emoji if illustration doesn't exist
-                        e.currentTarget.style.display = 'none';
-                      }}
-                    />
-                  </div>
-                  <p className="text-lg font-semibold text-gray-900">
-                    {recipientCount === 0
-                      ? "Select people to send to"
-                      : `Send dump to ${recipientCount} ${recipientCount === 1 ? "person" : "people"}`
-                    }
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </>
-    );
-  }
-
-  async function handleSaveDraft() {
-    setSaving(true);
-    setError("");
-
-    try {
-      const res = await fetch("/api/dumps", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          memeIds: selectedMemes.map((m) => m.id),
-          note: comment || null,
-          recipients: [],
-          isDraft: true,
-          existingDumpId: selectedDump?.id || null,
-        }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Failed to save");
-      }
-
-      onComplete?.();
-      onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  // MAIN VIEW
   return (
     <>
       <Confetti active={showConfetti} />
       <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center animate-fadeIn">
-        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={handleClose} />
 
-        <div className="relative w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl max-h-[90vh] overflow-hidden flex flex-col animate-slideUp sm:animate-scaleIn">
+        <div
+          ref={containerRef}
+          className="relative w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl max-h-[90vh] overflow-hidden flex flex-col animate-slideUp sm:animate-scaleIn"
+        >
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
             <button
-              onClick={onClose}
-              className="text-blue-500 font-medium min-w-[60px]"
+              onClick={handleClose}
+              className="text-blue-500 font-medium min-w-[70px]"
               disabled={saving}
             >
-              Cancel
+              {isNewDump ? "Cancel" : "✕"}
             </button>
-            <h2 className="font-semibold">Add to Dump</h2>
+
+            {/* Editable title */}
+            {isNewDump ? (
+              <h2 className="font-semibold">New Dump</h2>
+            ) : (
+              <input
+                type="text"
+                value={dumpName}
+                onChange={(e) => {
+                  setDumpName(e.target.value);
+                  setHasUnsavedChanges(true);
+                }}
+                placeholder="Untitled"
+                className="font-semibold text-center bg-transparent border-none outline-none w-32"
+              />
+            )}
+
             <button
-              onClick={handleSaveDraft}
-              disabled={saving}
-              className="text-blue-500 font-semibold min-w-[60px] text-right disabled:text-gray-300"
+              onClick={handleAction}
+              disabled={isActionDisabled}
+              className="text-blue-500 font-semibold min-w-[70px] text-right disabled:text-gray-300"
             >
-              {saving ? "..." : "Add"}
+              {saving ? "..." : actionButtonText}
             </button>
           </div>
 
@@ -560,69 +312,241 @@ export default function AddToDumpModal({
               </div>
             ) : (
               <>
-                {/* Photo preview - stacked/askew style */}
-                <div className="flex flex-col items-center">
-                  <div className="relative w-32 h-32">
-                    {selectedMemes.slice(0, 3).map((meme, i) => (
-                      <div
-                        key={meme.id}
-                        className="absolute w-28 h-28 rounded-2xl overflow-hidden bg-gray-100 shadow-lg"
-                        style={{
-                          transform: `rotate(${(i - 1) * 6}deg)`,
-                          top: `${i * 4}px`,
-                          left: `${i * 4}px`,
-                          zIndex: 3 - i,
-                        }}
-                      >
-                        {meme.file_type === "video" ? (
-                          <video src={meme.file_url} className="w-full h-full object-cover" muted />
-                        ) : (
-                          <img src={meme.file_url} alt="" className="w-full h-full object-cover" />
-                        )}
-                      </div>
-                    ))}
+                {/* Name field for new dumps */}
+                {isNewDump && (
+                  <div className="bg-gray-50 rounded-2xl">
+                    <input
+                      type="text"
+                      value={dumpName}
+                      onChange={(e) => {
+                        setDumpName(e.target.value);
+                        setHasUnsavedChanges(true);
+                      }}
+                      placeholder="Name your dump..."
+                      className="w-full px-4 py-3 bg-transparent focus:outline-none"
+                    />
                   </div>
-                </div>
+                )}
 
-                {/* Comment field */}
-                <div className="bg-gray-50 rounded-2xl">
-                  <textarea
-                    value={comment}
-                    onChange={(e) => setComment(e.target.value)}
-                    placeholder="Comment (optional)"
-                    className="w-full px-4 py-3 bg-transparent resize-none focus:outline-none min-h-[80px]"
-                    rows={2}
-                  />
-                </div>
-
-                {/* Dump selector row */}
-                <button
-                  onClick={() => setView("pick-dump")}
-                  className="w-full flex items-center justify-between bg-gray-50 rounded-2xl p-4"
-                >
-                  <span className="text-gray-500">Dump</span>
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-gray-200 rounded-lg flex items-center justify-center overflow-hidden">
-                      {selectedDump?.preview_url ? (
-                        <img src={selectedDump.preview_url} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        <span className="text-sm">💩</span>
-                      )}
+                {/* Meme preview - stacked/askew style */}
+                {hasMemes ? (
+                  <div className="flex flex-col items-center">
+                    <div className="relative w-32 h-32">
+                      {dumpMemes.slice(0, 3).map((meme, i) => (
+                        <div
+                          key={meme.id}
+                          className="absolute w-28 h-28 rounded-2xl overflow-hidden bg-gray-100 shadow-lg"
+                          style={{
+                            transform: `rotate(${(i - 1) * 6}deg)`,
+                            top: `${i * 4}px`,
+                            left: `${i * 4}px`,
+                            zIndex: 3 - i,
+                          }}
+                        >
+                          {meme.file_type === "video" ? (
+                            <video src={meme.file_url} className="w-full h-full object-cover" muted />
+                          ) : (
+                            <img src={meme.file_url} alt="" className="w-full h-full object-cover" />
+                          )}
+                        </div>
+                      ))}
                     </div>
-                    <span className="font-medium">{dumpLabel}</span>
-                    <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
+                    {dumpMemes.length > 3 && (
+                      <p className="text-sm text-gray-500 mt-4">+{dumpMemes.length - 3} more</p>
+                    )}
+                    <button
+                      onClick={() => setShowMemePicker(true)}
+                      className="text-blue-500 text-sm font-medium mt-2"
+                    >
+                      + Add more memes
+                    </button>
                   </div>
-                </button>
+                ) : (
+                  <button
+                    onClick={() => setShowMemePicker(true)}
+                    className="w-full py-12 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 hover:border-blue-400 transition-colors flex flex-col items-center justify-center gap-2"
+                  >
+                    <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                      <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                    </div>
+                    <span className="text-gray-500 font-medium">Add memes to dump</span>
+                  </button>
+                )}
 
-                {/* Send Now option */}
-                <button
-                  onClick={() => setView("recipients")}
-                  className="w-full py-3.5 bg-blue-500 hover:bg-blue-600 text-white rounded-2xl font-semibold transition-colors"
-                >
-                  Add & Send Now
-                </button>
+                {/* Recipients section */}
+                <div className="space-y-2">
+                  <h3 className="text-sm font-medium text-gray-500">Send to</h3>
+
+                  {/* Selected recipients as chips */}
+                  <div className="flex flex-wrap gap-2">
+                    {getSelectedRecipients().map((recipient) => (
+                      <span
+                        key={recipient.name}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-100 text-blue-700 rounded-full text-sm font-medium"
+                      >
+                        {formatName(recipient.name)}
+                        <button
+                          onClick={() => {
+                            if (recipient.connectionId) {
+                              toggleConnection(recipient.connectionId);
+                            }
+                          }}
+                          className="text-blue-400 hover:text-blue-600"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+
+                    {/* Add recipient chip */}
+                    <button
+                      onClick={() => setShowRecipientPicker(!showRecipientPicker)}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-100 text-gray-600 rounded-full text-sm font-medium hover:bg-gray-200 transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      Add
+                    </button>
+                  </div>
+
+                  {/* Recipient picker (expandable) */}
+                  {showRecipientPicker && (
+                    <div className="bg-gray-50 rounded-2xl overflow-hidden mt-2">
+                      {/* Connected users */}
+                      {connectedUsers.length > 0 && (
+                        <div className="p-3 border-b border-gray-200">
+                          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                            Connected
+                          </p>
+                          {connectedUsers.map((connection) => (
+                            <button
+                              key={connection.id}
+                              onClick={() => toggleConnection(connection.id)}
+                              className="w-full flex items-center justify-between py-2"
+                            >
+                              <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center">
+                                  <span className="text-white font-semibold text-xs">
+                                    {connection.name.charAt(0).toUpperCase()}
+                                  </span>
+                                </div>
+                                <span className="font-medium text-sm">{formatName(connection.name)}</span>
+                                <span className="text-green-500 text-xs">✓</span>
+                              </div>
+                              <div className={`w-5 h-5 rounded-full flex items-center justify-center ${
+                                selectedConnectionIds.has(connection.id) ? "bg-blue-500" : "bg-gray-200"
+                              }`}>
+                                {selectedConnectionIds.has(connection.id) && (
+                                  <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                )}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Pending connections */}
+                      {pendingConnections.length > 0 && (
+                        <div className="p-3 border-b border-gray-200">
+                          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                            Pending
+                          </p>
+                          {pendingConnections.map((connection) => (
+                            <button
+                              key={connection.id}
+                              onClick={() => toggleConnection(connection.id)}
+                              className="w-full flex items-center justify-between py-2"
+                            >
+                              <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
+                                  <span className="text-gray-500 font-semibold text-xs">
+                                    {connection.name.charAt(0).toUpperCase()}
+                                  </span>
+                                </div>
+                                <span className="font-medium text-sm">{formatName(connection.name)}</span>
+                              </div>
+                              <div className={`w-5 h-5 rounded-full flex items-center justify-center ${
+                                selectedConnectionIds.has(connection.id) ? "bg-blue-500" : "bg-gray-200"
+                              }`}>
+                                {selectedConnectionIds.has(connection.id) && (
+                                  <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                )}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Groups */}
+                      {groups.length > 0 && (
+                        <div className="p-3 border-b border-gray-200">
+                          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                            Groups
+                          </p>
+                          {groups.map((group) => (
+                            <button
+                              key={group.id}
+                              onClick={() => toggleGroup(group.id)}
+                              className="w-full flex items-center justify-between py-2"
+                            >
+                              <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center">
+                                  <span className="text-sm">👥</span>
+                                </div>
+                                <div className="text-left">
+                                  <span className="font-medium text-sm block">{group.name}</span>
+                                  <span className="text-xs text-gray-400">{group.members.length} people</span>
+                                </div>
+                              </div>
+                              <div className={`w-5 h-5 rounded-full flex items-center justify-center ${
+                                selectedGroupIds.has(group.id) ? "bg-blue-500" : "bg-gray-200"
+                              }`}>
+                                {selectedGroupIds.has(group.id) && (
+                                  <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                )}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Add new recipient */}
+                      <div className="p-3">
+                        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                          Add someone new
+                        </p>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={newRecipientName}
+                            onChange={(e) => setNewRecipientName(e.target.value)}
+                            placeholder="Name..."
+                            className="flex-1 px-3 py-2 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                          <button
+                            onClick={() => {
+                              // TODO: Add new recipient
+                              setNewRecipientName("");
+                            }}
+                            disabled={!newRecipientName.trim()}
+                            className="px-4 py-2 bg-blue-500 text-white rounded-xl text-sm font-medium disabled:opacity-50"
+                          >
+                            Add
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
 
                 {error && <p className="text-red-500 text-sm text-center">{error}</p>}
               </>
@@ -630,6 +554,84 @@ export default function AddToDumpModal({
           </div>
         </div>
       </div>
+
+      {/* Send confirmation dialog */}
+      {showSendConfirm && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-6 animate-fadeIn">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowSendConfirm(false)} />
+          <div className="relative bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl">
+            <h3 className="text-lg font-bold text-center mb-2">
+              Send dump to {recipientCount} {recipientCount === 1 ? "person" : "people"}?
+            </h3>
+            <p className="text-gray-500 text-center text-sm mb-6">
+              They&apos;ll get a link to view your memes
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowSendConfirm(false)}
+                className="flex-1 py-3 bg-gray-100 text-gray-700 font-semibold rounded-xl"
+                disabled={saving}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleSave(false)}
+                disabled={saving}
+                className="flex-1 py-3 bg-blue-500 text-white font-semibold rounded-xl"
+              >
+                {saving ? "Sending..." : "Send"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Discard changes confirmation */}
+      {showDiscardConfirm && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-6 animate-fadeIn">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowDiscardConfirm(false)} />
+          <div className="relative bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl">
+            <h3 className="text-lg font-bold text-center mb-2">
+              Save changes?
+            </h3>
+            <p className="text-gray-500 text-center text-sm mb-6">
+              You have unsaved changes to this dump
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowDiscardConfirm(false);
+                  onClose();
+                }}
+                className="flex-1 py-3 bg-gray-100 text-gray-700 font-semibold rounded-xl"
+              >
+                Discard
+              </button>
+              <button
+                onClick={async () => {
+                  setShowDiscardConfirm(false);
+                  await handleSave(true);
+                }}
+                className="flex-1 py-3 bg-blue-500 text-white font-semibold rounded-xl"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Meme Picker */}
+      <MemePicker
+        isOpen={showMemePicker}
+        onClose={() => setShowMemePicker(false)}
+        selectedMemeIds={new Set(dumpMemes.map((m) => m.id))}
+        onSelectionChange={() => {}}
+        onDone={(selectedMemes) => {
+          setDumpMemes(selectedMemes);
+          setHasUnsavedChanges(true);
+        }}
+      />
     </>
   );
 }

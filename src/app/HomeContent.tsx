@@ -224,6 +224,12 @@ export default function HomeContent({ userId }: HomeContentProps) {
             setViewerIndex(null);
             setShowAddToDump(true);
           }}
+          onNewDump={(meme) => {
+            setMemeToAdd(meme);
+            setViewerIndex(null);
+            setSelectedDumpId(null); // Ensure it's a new dump
+            setShowAddToDump(true);
+          }}
           onDelete={handleDelete}
         />
       )}
