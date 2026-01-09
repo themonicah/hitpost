@@ -6,53 +6,30 @@ import MemeGrid from "@/components/MemeGrid";
 import MemeViewer from "@/components/MemeViewer";
 import FunLoader from "@/components/FunLoader";
 import EmptyState from "@/components/EmptyState";
-import DumpsBar, { DumpsBarRef } from "@/components/DumpsBar";
-import DumpCreator from "@/components/DumpCreator";
 import AddToDumpModal from "@/components/AddToDumpModal";
-import SendDumpModal from "@/components/SendDumpModal";
 
 interface HomeContentProps {
   userId: string;
+  onSelectionChange?: (count: number, onAddToDump: () => void) => void;
 }
 
-export default function HomeContent({ userId }: HomeContentProps) {
+export default function HomeContent({ userId, onSelectionChange }: HomeContentProps) {
   const [memes, setMemes] = useState<Meme[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
-  const [showDumpCreator, setShowDumpCreator] = useState(false);
   const [showAddToDump, setShowAddToDump] = useState(false);
-  const [showSendModal, setShowSendModal] = useState(false);
-  const [dumpMemesToSend, setDumpMemesToSend] = useState<Meme[]>([]);
   const [uploading, setUploading] = useState(false);
-  const dumpsBarRef = useRef<DumpsBarRef>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // When a dump is selected from the bar, fetch its memes and open send modal
-  async function handleDumpSelect(dumpId: string) {
-    try {
-      const res = await fetch(`/api/dumps/${dumpId}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.dump?.memes) {
-          // Convert to Meme type
-          const dumpMemes: Meme[] = data.dump.memes.map((m: { id: string; file_url: string; file_type: string }) => ({
-            id: m.id,
-            file_url: m.file_url,
-            file_type: m.file_type,
-            user_id: userId,
-            created_at: "",
-          }));
-          setDumpMemesToSend(dumpMemes);
-          setShowSendModal(true);
-        }
-      }
-    } catch (err) {
-      console.error("Failed to load dump:", err);
+  // Notify parent about selection changes
+  useEffect(() => {
+    if (onSelectionChange) {
+      onSelectionChange(selectedIds.size, () => setShowAddToDump(true));
     }
-  }
+  }, [selectedIds.size, onSelectionChange]);
 
   const fetchMemes = useCallback(async () => {
     setError(null);
@@ -77,8 +54,6 @@ export default function HomeContent({ userId }: HomeContentProps) {
 
   function handleDelete(id: string) {
     setMemes((prev) => prev.filter((m) => m.id !== id));
-    // Refresh dumps bar since the meme might have been in a dump
-    dumpsBarRef.current?.refresh();
   }
 
   async function handleUpload(files: FileList | null) {
@@ -153,7 +128,7 @@ export default function HomeContent({ userId }: HomeContentProps) {
           className="hidden"
         />
 
-        <div className="bg-white dark:bg-gray-900 rounded-2xl">
+        <div className="bg-white rounded-2xl">
           <EmptyState
             type="memes"
             title="No memes yet"
@@ -164,14 +139,6 @@ export default function HomeContent({ userId }: HomeContentProps) {
             }}
           />
         </div>
-
-        {/* Still show DumpsBar for drafts */}
-        <DumpsBar
-          ref={dumpsBarRef}
-          onDumpSelect={handleDumpSelect}
-          onCreateNew={() => setShowDumpCreator(true)}
-        />
-        <div className="h-28" />
       </div>
     );
   }
@@ -243,7 +210,7 @@ export default function HomeContent({ userId }: HomeContentProps) {
         />
       )}
 
-      {/* Add to Dump Modal - choose new or existing */}
+      {/* Add to Dump Modal */}
       <AddToDumpModal
         isOpen={showAddToDump}
         onClose={() => {
@@ -253,48 +220,10 @@ export default function HomeContent({ userId }: HomeContentProps) {
         }}
         selectedMemes={selectedMemes}
         onComplete={() => {
-          dumpsBarRef.current?.refresh();
           setSelectMode(false);
           setSelectedIds(new Set());
         }}
       />
-
-      {/* Dump Creator - full screen flow (for creating from DumpsBar) */}
-      <DumpCreator
-        isOpen={showDumpCreator}
-        onClose={() => {
-          setShowDumpCreator(false);
-        }}
-        onCreated={(dumpId) => {
-          dumpsBarRef.current?.refresh();
-        }}
-        initialMemes={[]}
-      />
-
-      {/* Dumps Bar - floating at bottom */}
-      <DumpsBar
-        ref={dumpsBarRef}
-        onDumpSelect={handleDumpSelect}
-        onCreateNew={() => setShowDumpCreator(true)}
-      />
-
-      {/* Send Modal - opens when clicking a dump */}
-      <SendDumpModal
-        isOpen={showSendModal}
-        onClose={() => {
-          setShowSendModal(false);
-          setDumpMemesToSend([]);
-        }}
-        selectedMemes={dumpMemesToSend}
-        onSent={() => {
-          setShowSendModal(false);
-          setDumpMemesToSend([]);
-          dumpsBarRef.current?.refresh();
-        }}
-      />
-
-      {/* Spacer for dumps bar */}
-      <div className="h-28" />
     </div>
   );
 }
