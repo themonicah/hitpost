@@ -16,9 +16,9 @@ export default function HomeContent({ userId }: HomeContentProps) {
   const [memes, setMemes] = useState<Meme[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const [showAddToDump, setShowAddToDump] = useState(false);
+  const [memeToAdd, setMemeToAdd] = useState<Meme | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -93,7 +93,6 @@ export default function HomeContent({ userId }: HomeContentProps) {
     );
   }
 
-  const selectedMemes = memes.filter((m) => selectedIds.has(m.id));
 
   // Empty state when no memes
   if (memes.length === 0) {
@@ -164,16 +163,12 @@ export default function HomeContent({ userId }: HomeContentProps) {
         <MemeViewer
           memes={memes}
           initialIndex={viewerIndex}
-          onClose={() => {
+          onClose={() => setViewerIndex(null)}
+          onAddToDump={(meme) => {
+            setMemeToAdd(meme);
             setViewerIndex(null);
-            // If there are selected memes, show the Add to Dump modal
-            if (selectedIds.size > 0) {
-              setShowAddToDump(true);
-            }
+            setShowAddToDump(true);
           }}
-          selectable={true}
-          selectedIds={selectedIds}
-          onSelectionChange={setSelectedIds}
           onDelete={handleDelete}
         />
       )}
@@ -183,11 +178,11 @@ export default function HomeContent({ userId }: HomeContentProps) {
         isOpen={showAddToDump}
         onClose={() => {
           setShowAddToDump(false);
-          setSelectedIds(new Set());
+          setMemeToAdd(null);
         }}
-        selectedMemes={selectedMemes}
+        selectedMemes={memeToAdd ? [memeToAdd] : []}
         onComplete={() => {
-          setSelectedIds(new Set());
+          setMemeToAdd(null);
         }}
       />
     </div>

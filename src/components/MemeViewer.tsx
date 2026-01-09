@@ -7,9 +7,7 @@ interface MemeViewerProps {
   memes: Meme[];
   initialIndex: number;
   onClose: () => void;
-  selectable?: boolean;
-  selectedIds?: Set<string>;
-  onSelectionChange?: (ids: Set<string>) => void;
+  onAddToDump?: (meme: Meme) => void;
   onDelete?: (memeId: string) => void;
 }
 
@@ -17,9 +15,7 @@ export default function MemeViewer({
   memes,
   initialIndex,
   onClose,
-  selectable = false,
-  selectedIds = new Set(),
-  onSelectionChange,
+  onAddToDump,
   onDelete,
 }: MemeViewerProps) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
@@ -79,17 +75,6 @@ export default function MemeViewer({
       document.body.style.overflow = "";
     };
   }, []);
-
-  function toggleSelection() {
-    if (!onSelectionChange) return;
-    const newSelected = new Set(selectedIds);
-    if (newSelected.has(currentMeme.id)) {
-      newSelected.delete(currentMeme.id);
-    } else {
-      newSelected.add(currentMeme.id);
-    }
-    onSelectionChange(newSelected);
-  }
 
   async function handleDelete() {
     if (!onDelete) return;
@@ -172,7 +157,6 @@ export default function MemeViewer({
     }
   }
 
-  const isSelected = selectedIds.has(currentMeme.id);
   const opacity = isDragging ? Math.max(0.3, 1 - dragY / 300) : 1;
 
   return (
@@ -191,19 +175,15 @@ export default function MemeViewer({
         </button>
 
         {/* Center - Add to Dump */}
-        {selectable && (
+        {onAddToDump && (
           <button
             onClick={(e) => {
               e.stopPropagation();
-              toggleSelection();
+              onAddToDump(currentMeme);
             }}
-            className={`px-5 py-2.5 rounded-full font-semibold transition-all duration-200 active:scale-95 ${
-              isSelected
-                ? "bg-blue-500 text-white"
-                : "bg-white/20 text-white"
-            }`}
+            className="px-5 py-2.5 rounded-full font-semibold transition-all duration-200 active:scale-95 bg-white/20 text-white hover:bg-white/30"
           >
-            {isSelected ? "✓ Added" : "Add to Dump"}
+            Add to Dump
           </button>
         )}
 
@@ -221,7 +201,7 @@ export default function MemeViewer({
             </svg>
           </button>
         )}
-        {!onDelete && <div className="w-10" />}
+        {!onDelete && !onAddToDump && <div className="w-10" />}
       </div>
 
       {/* Main content */}
