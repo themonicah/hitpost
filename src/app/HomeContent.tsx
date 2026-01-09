@@ -7,13 +7,24 @@ import MemeViewer from "@/components/MemeViewer";
 import FunLoader from "@/components/FunLoader";
 import EmptyState from "@/components/EmptyState";
 import AddToDumpModal from "@/components/AddToDumpModal";
+import DraftDumps from "@/components/DraftDumps";
 
 interface HomeContentProps {
   userId: string;
 }
 
+interface DraftDump {
+  id: string;
+  name: string;
+  memes: Meme[];
+  memeCount: number;
+  recipientCount: number;
+  createdAt: string;
+}
+
 export default function HomeContent({ userId }: HomeContentProps) {
   const [memes, setMemes] = useState<Meme[]>([]);
+  const [draftDumps, setDraftDumps] = useState<DraftDump[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
@@ -25,12 +36,43 @@ export default function HomeContent({ userId }: HomeContentProps) {
   const fetchMemes = useCallback(async () => {
     setError(null);
     try {
-      const res = await fetch("/api/memes");
-      if (res.ok) {
-        const data = await res.json();
+      const [memesRes, dumpsRes] = await Promise.all([
+        fetch("/api/memes"),
+        fetch("/api/dumps?drafts=true"),
+      ]);
+
+      if (memesRes.ok) {
+        const data = await memesRes.json();
         setMemes(data.memes);
       } else {
         setError("Failed to load memes");
+      }
+
+      if (dumpsRes.ok) {
+        const dumpsData = await dumpsRes.json();
+        // Transform API response to DraftDump format
+        const drafts: DraftDump[] = (dumpsData.dumps || []).map((dump: {
+          id: string;
+          note: string | null;
+          meme_count: number;
+          recipient_count: number;
+          created_at: string;
+          preview_urls?: string[];
+        }) => ({
+          id: dump.id,
+          name: dump.note || "Untitled",
+          memes: (dump.preview_urls || []).map((url: string, i: number) => ({
+            id: `preview-${i}`,
+            user_id: "",
+            file_url: url,
+            file_type: "image" as const,
+            created_at: "",
+          })),
+          memeCount: dump.meme_count,
+          recipientCount: dump.recipient_count,
+          createdAt: dump.created_at,
+        }));
+        setDraftDumps(drafts);
       }
     } catch {
       setError("Network error. Check your connection.");
@@ -151,6 +193,11 @@ export default function HomeContent({ userId }: HomeContentProps) {
           </svg>
         </button>
       </div>
+
+      {/* Draft Dumps Section */}
+      {draftDumps.length > 0 && (
+        <DraftDumps drafts={draftDumps} />
+      )}
 
       {/* Meme Grid */}
       <MemeGrid

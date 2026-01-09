@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Meme } from "@/lib/db";
+import { useEffect, useState, useRef } from "react";
+import { Meme, UserConnection } from "@/lib/db";
 import { useRouter } from "next/navigation";
 import Confetti from "./Confetti";
 import FunLoader from "./FunLoader";
+import Image from "next/image";
 
 interface Dump {
   id: string;
@@ -28,7 +29,7 @@ interface AddToDumpModalProps {
   onComplete?: () => void;
 }
 
-type View = "main" | "pick-dump" | "pick-recipients";
+type View = "main" | "pick-dump" | "recipients";
 
 export default function AddToDumpModal({
   isOpen,
@@ -40,7 +41,7 @@ export default function AddToDumpModal({
   const [view, setView] = useState<View>("main");
   const [drafts, setDrafts] = useState<Dump[]>([]);
   const [selectedDump, setSelectedDump] = useState<Dump | null>(null);
-  const [newDumpName, setNewDumpName] = useState("");
+  const [comment, setComment] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -48,20 +49,25 @@ export default function AddToDumpModal({
 
   // Recipients state
   const [groups, setGroups] = useState<Group[]>([]);
+  const [connections, setConnections] = useState<UserConnection[]>([]);
   const [selectedGroupIds, setSelectedGroupIds] = useState<Set<string>>(new Set());
+  const [selectedConnectionIds, setSelectedConnectionIds] = useState<Set<string>>(new Set());
   const [manualNames, setManualNames] = useState("");
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  // Fetch drafts and groups when modal opens
+  // Fetch drafts, groups, and connections when modal opens
   useEffect(() => {
     if (isOpen) {
       setLoading(true);
       Promise.all([
         fetch("/api/dumps?drafts=true").then(r => r.json()),
         fetch("/api/groups").then(r => r.json()),
+        fetch("/api/connections").then(r => r.json()),
       ])
-        .then(([dumpsData, groupsData]) => {
+        .then(([dumpsData, groupsData, connectionsData]) => {
           setDrafts(dumpsData.dumps?.filter((d: Dump) => d.is_draft) || []);
           setGroups(groupsData.groups || []);
+          setConnections(connectionsData.connections || []);
         })
         .catch(console.error)
         .finally(() => setLoading(false));
@@ -73,8 +79,9 @@ export default function AddToDumpModal({
     if (!isOpen) {
       setView("main");
       setSelectedDump(null);
-      setNewDumpName("");
+      setComment("");
       setSelectedGroupIds(new Set());
+      setSelectedConnectionIds(new Set());
       setManualNames("");
       setError("");
     }
@@ -82,6 +89,8 @@ export default function AddToDumpModal({
 
   function getUniqueRecipients(): { name: string }[] {
     const names = new Set<string>();
+
+    // Add from selected groups
     for (const groupId of selectedGroupIds) {
       const group = groups.find((g) => g.id === groupId);
       if (group) {
@@ -90,6 +99,16 @@ export default function AddToDumpModal({
         }
       }
     }
+
+    // Add from selected connections
+    for (const connectionId of selectedConnectionIds) {
+      const connection = connections.find((c) => c.id === connectionId);
+      if (connection) {
+        names.add(connection.name);
+      }
+    }
+
+    // Add manual names
     const manualList = manualNames
       .split(/[,\n]/)
       .map((n) => n.trim())
@@ -97,17 +116,18 @@ export default function AddToDumpModal({
     for (const name of manualList) {
       names.add(name);
     }
+
     return Array.from(names).map(name => ({ name }));
   }
 
-  async function handleAdd(andSend: boolean = false) {
+  async function handleSend() {
     setSaving(true);
     setError("");
 
     try {
-      const recipients = andSend ? getUniqueRecipients() : [];
+      const recipients = getUniqueRecipients();
 
-      if (andSend && recipients.length === 0) {
+      if (recipients.length === 0) {
         setError("Pick someone to send to");
         setSaving(false);
         return;
@@ -118,9 +138,9 @@ export default function AddToDumpModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           memeIds: selectedMemes.map((m) => m.id),
-          note: newDumpName || null,
+          note: comment || null,
           recipients,
-          isDraft: !andSend,
+          isDraft: false,
           existingDumpId: selectedDump?.id || null,
         }),
       });
@@ -132,18 +152,13 @@ export default function AddToDumpModal({
 
       const data = await res.json();
 
-      if (andSend) {
-        setShowConfetti(true);
-        setTimeout(() => {
-          onComplete?.();
-          onClose();
-          setShowConfetti(false);
-          router.push(`/dumps/${data.dumpId}`);
-        }, 1000);
-      } else {
+      setShowConfetti(true);
+      setTimeout(() => {
         onComplete?.();
         onClose();
-      }
+        setShowConfetti(false);
+        router.push(`/dumps/${data.dumpId}`);
+      }, 1000);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -155,6 +170,11 @@ export default function AddToDumpModal({
 
   const recipientCount = getUniqueRecipients().length;
   const dumpLabel = selectedDump ? (selectedDump.note || "Untitled") : "New Dump";
+
+  // Connected users (with user_id linked)
+  const connectedUsers = connections.filter(c => c.connected_user_id);
+  // Pending connections (without user_id)
+  const pendingConnections = connections.filter(c => !c.connected_user_id);
 
   // DUMP PICKER VIEW
   if (view === "pick-dump") {
@@ -240,15 +260,18 @@ export default function AddToDumpModal({
     );
   }
 
-  // RECIPIENT PICKER VIEW
-  if (view === "pick-recipients") {
+  // RECIPIENTS VIEW - Slides in from right
+  if (view === "recipients") {
     return (
       <>
         <Confetti active={showConfetti} />
         <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center animate-fadeIn">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setView("main")} />
 
-          <div className="relative w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl max-h-[90vh] overflow-hidden flex flex-col animate-slideUp sm:animate-scaleIn">
+          <div
+            ref={containerRef}
+            className="relative w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl max-h-[90vh] overflow-hidden flex flex-col animate-slideInRight sm:animate-scaleIn"
+          >
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
               <button
@@ -260,37 +283,140 @@ export default function AddToDumpModal({
               </button>
               <h2 className="font-semibold">Send To</h2>
               <button
-                onClick={() => handleAdd(true)}
+                onClick={handleSend}
                 disabled={saving || recipientCount === 0}
                 className="text-blue-500 font-semibold min-w-[60px] text-right disabled:text-gray-300"
               >
-                {saving ? "..." : "Send"}
+                {saving ? "..." : "Save"}
               </button>
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-y-auto p-4 pb-safe space-y-4">
+            <div className="flex-1 overflow-y-auto">
+              {/* Connections section */}
+              {connectedUsers.length > 0 && (
+                <div className="px-4 pt-4">
+                  <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                    Connected
+                  </h3>
+                  <div className="bg-gray-50 rounded-2xl overflow-hidden">
+                    {connectedUsers.map((connection, index) => (
+                      <button
+                        key={connection.id}
+                        onClick={() => {
+                          setSelectedConnectionIds(prev => {
+                            const next = new Set(prev);
+                            if (next.has(connection.id)) next.delete(connection.id);
+                            else next.add(connection.id);
+                            return next;
+                          });
+                        }}
+                        className={`w-full flex items-center justify-between px-4 py-3 ${
+                          index < connectedUsers.length - 1 ? "border-b border-gray-200" : ""
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-gradient-to-br from-electric to-lavender rounded-full flex items-center justify-center">
+                            <span className="text-white font-semibold text-sm">
+                              {connection.name.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                          <span className="font-medium">{connection.name}</span>
+                        </div>
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                          selectedConnectionIds.has(connection.id) ? "bg-blue-500" : "bg-gray-200"
+                        }`}>
+                          {selectedConnectionIds.has(connection.id) && (
+                            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                          )}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Pending connections */}
+              {pendingConnections.length > 0 && (
+                <div className="px-4 pt-4">
+                  <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                    Pending
+                  </h3>
+                  <div className="bg-gray-50 rounded-2xl overflow-hidden">
+                    {pendingConnections.map((connection, index) => (
+                      <button
+                        key={connection.id}
+                        onClick={() => {
+                          setSelectedConnectionIds(prev => {
+                            const next = new Set(prev);
+                            if (next.has(connection.id)) next.delete(connection.id);
+                            else next.add(connection.id);
+                            return next;
+                          });
+                        }}
+                        className={`w-full flex items-center justify-between px-4 py-3 ${
+                          index < pendingConnections.length - 1 ? "border-b border-gray-200" : ""
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
+                            <span className="text-gray-500 font-semibold text-sm">
+                              {connection.name.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                          <div className="text-left">
+                            <span className="font-medium block">{connection.name}</span>
+                            <span className="text-xs text-gray-400">Hasn&apos;t installed app yet</span>
+                          </div>
+                        </div>
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                          selectedConnectionIds.has(connection.id) ? "bg-blue-500" : "bg-gray-200"
+                        }`}>
+                          {selectedConnectionIds.has(connection.id) && (
+                            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                          )}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Groups */}
               {groups.length > 0 && (
-                <div className="bg-gray-50 rounded-2xl overflow-hidden">
-                  {groups.map((group, index) => (
-                    <button
-                      key={group.id}
-                      onClick={() => {
-                        setSelectedGroupIds(prev => {
-                          const next = new Set(prev);
-                          if (next.has(group.id)) next.delete(group.id);
-                          else next.add(group.id);
-                          return next;
-                        });
-                      }}
-                      className={`w-full flex items-center justify-between px-4 py-3 ${
-                        index < groups.length - 1 ? "border-b border-gray-200" : ""
-                      }`}
-                    >
-                      <span className="font-medium">{group.name}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-gray-500">{group.members.length}</span>
+                <div className="px-4 pt-4">
+                  <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                    Groups
+                  </h3>
+                  <div className="bg-gray-50 rounded-2xl overflow-hidden">
+                    {groups.map((group, index) => (
+                      <button
+                        key={group.id}
+                        onClick={() => {
+                          setSelectedGroupIds(prev => {
+                            const next = new Set(prev);
+                            if (next.has(group.id)) next.delete(group.id);
+                            else next.add(group.id);
+                            return next;
+                          });
+                        }}
+                        className={`w-full flex items-center justify-between px-4 py-3 ${
+                          index < groups.length - 1 ? "border-b border-gray-200" : ""
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-sunny/20 rounded-full flex items-center justify-center">
+                            <span className="text-lg">👥</span>
+                          </div>
+                          <div className="text-left">
+                            <span className="font-medium block">{group.name}</span>
+                            <span className="text-xs text-gray-400">{group.members.length} people</span>
+                          </div>
+                        </div>
                         <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
                           selectedGroupIds.has(group.id) ? "bg-blue-500" : "bg-gray-200"
                         }`}>
@@ -300,33 +426,56 @@ export default function AddToDumpModal({
                             </svg>
                           )}
                         </div>
-                      </div>
-                    </button>
-                  ))}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
 
-              {/* Manual names */}
-              <div className="bg-gray-50 rounded-2xl p-4">
-                <label className="text-sm font-medium text-gray-500 mb-2 block">
-                  Or add people:
-                </label>
-                <textarea
-                  value={manualNames}
-                  onChange={(e) => setManualNames(e.target.value)}
-                  placeholder="Mom, Dad, Best Friend"
-                  className="w-full px-3 py-2 bg-white rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                  rows={2}
-                />
+              {/* Manual names entry */}
+              <div className="px-4 pt-4">
+                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                  Add Someone New
+                </h3>
+                <div className="bg-gray-50 rounded-2xl p-4">
+                  <textarea
+                    value={manualNames}
+                    onChange={(e) => setManualNames(e.target.value)}
+                    placeholder="Mom, Dad, Best Friend..."
+                    className="w-full px-3 py-2 bg-white rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    rows={2}
+                  />
+                </div>
               </div>
 
-              {recipientCount > 0 && (
-                <p className="text-center text-sm text-gray-500">
-                  Sending to {recipientCount} {recipientCount === 1 ? "person" : "people"}
-                </p>
+              {error && (
+                <p className="text-red-500 text-sm text-center px-4 pt-4">{error}</p>
               )}
 
-              {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+              {/* Bottom illustration and send button */}
+              <div className="p-4 pb-safe">
+                <div className="bg-gradient-to-br from-sunny/10 to-peachy/10 rounded-2xl p-6 text-center">
+                  <div className="flex justify-center mb-3">
+                    <Image
+                      src="/illustrations/send-dump.svg"
+                      alt="Send dump"
+                      width={120}
+                      height={80}
+                      className="opacity-80"
+                      onError={(e) => {
+                        // Fallback to emoji if illustration doesn't exist
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
+                  </div>
+                  <p className="text-lg font-semibold text-gray-900">
+                    {recipientCount === 0
+                      ? "Select people to send to"
+                      : `Send dump to ${recipientCount} ${recipientCount === 1 ? "person" : "people"}`
+                    }
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -353,11 +502,11 @@ export default function AddToDumpModal({
             </button>
             <h2 className="font-semibold">Add to Dump</h2>
             <button
-              onClick={() => handleAdd(false)}
+              onClick={() => setView("recipients")}
               disabled={saving}
               className="text-blue-500 font-semibold min-w-[60px] text-right disabled:text-gray-300"
             >
-              {saving ? "..." : "Add"}
+              Add
             </button>
           </div>
 
@@ -369,9 +518,9 @@ export default function AddToDumpModal({
               </div>
             ) : (
               <>
-                {/* Photo preview - stacked style */}
+                {/* Photo preview - stacked/askew style */}
                 <div className="flex flex-col items-center">
-                  <div className="relative w-32 h-32 mb-2">
+                  <div className="relative w-32 h-32">
                     {selectedMemes.slice(0, 3).map((meme, i) => (
                       <div
                         key={meme.id}
@@ -391,16 +540,13 @@ export default function AddToDumpModal({
                       </div>
                     ))}
                   </div>
-                  <p className="text-sm font-medium text-gray-900">
-                    {selectedMemes.length} {selectedMemes.length === 1 ? "Meme" : "Memes"}
-                  </p>
                 </div>
 
                 {/* Comment field */}
                 <div className="bg-gray-50 rounded-2xl">
                   <textarea
-                    value={newDumpName}
-                    onChange={(e) => setNewDumpName(e.target.value)}
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
                     placeholder="Comment (optional)"
                     className="w-full px-4 py-3 bg-transparent resize-none focus:outline-none min-h-[80px]"
                     rows={2}
@@ -427,23 +573,6 @@ export default function AddToDumpModal({
                     </svg>
                   </div>
                 </button>
-
-                {/* Action buttons */}
-                <div className="space-y-2 pt-2">
-                  <button
-                    onClick={() => setView("pick-recipients")}
-                    className="w-full py-3.5 bg-blue-500 hover:bg-blue-600 text-white rounded-2xl font-semibold transition-colors"
-                  >
-                    Add & Send Now
-                  </button>
-                  <button
-                    onClick={() => handleAdd(false)}
-                    disabled={saving}
-                    className="w-full py-3.5 text-gray-500 font-medium"
-                  >
-                    {saving ? "Saving..." : "Save for Later"}
-                  </button>
-                </div>
 
                 {error && <p className="text-red-500 text-sm text-center">{error}</p>}
               </>
