@@ -126,10 +126,9 @@ Create a personal-use tool that **just works** - a snappy, reliable app that mak
 |----|-------------|
 | FR-2.1 | The system must allow users to upload images and videos from their device camera roll. |
 | FR-2.2 | The system must display all uploaded memes in a scrollable grid view. |
-| FR-2.3 | The system must support filtering memes by: All, Used (sent in a dump), Unused (never sent). |
-| FR-2.4 | The system must allow deletion of memes from the library. |
-| FR-2.5 | The system must automatically compress images larger than 2MB to optimize storage and transmission. |
-| FR-2.6 | The system must automatically compress videos to a maximum of 720p resolution. |
+| FR-2.3 | The system must allow deletion of memes from the library. |
+| FR-2.4 | The system must automatically compress images larger than 2MB to optimize storage and transmission. |
+| FR-2.5 | The system must automatically compress videos to a maximum of 720p resolution. |
 
 ### 4.3 Dump Creation
 

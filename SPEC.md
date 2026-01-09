@@ -63,7 +63,6 @@ Benefits:
 ### Library (Home)
 - Grid of all uploaded memes
 - Multi-select to create dumps
-- Filter: All / Used / Unused
 - Upload via camera roll
 
 ### Dumps

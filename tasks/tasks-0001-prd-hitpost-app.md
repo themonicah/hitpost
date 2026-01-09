@@ -112,7 +112,6 @@
 - [x] 3.6 Add multi-select mode to MemeGrid with selection count
 - [ ] 3.7 Implement image compression before upload (>2MB → 80% JPEG, max 1920px)
 - [ ] 3.8 Implement video compression (720p max)
-- [ ] 3.9 Create filter tabs (All/Used/Unused)
 
 ### 4.0 Develop Dump Creation and Recipient Management
 - [x] 4.1 Create meme selection flow with multi-select
