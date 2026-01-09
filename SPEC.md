@@ -151,6 +151,80 @@ Instead of relying on deep links, use memorable short codes displayed prominentl
 
 ---
 
+## Claim Once, Push Forever
+
+Once a recipient claims their first dump from a sender, they become **connected**. Future dumps from that sender skip the claim code entirely.
+
+### How It Works
+
+```
+First dump to "Mom":
+  → System checks: Has this sender→"Mom" relationship been claimed before?
+  → NO → Generate claim code + link
+  → Sender shares link manually
+  → Mom opens link, installs app, enters code
+  → System links: sender_id + "Mom" → mom's user_id
+
+Second dump to "Mom":
+  → System checks: Has this sender→"Mom" relationship been claimed before?
+  → YES → Found mom's user_id from previous claim
+  → Create recipient linked directly to her account
+  → Send push notification: "New meme dump from [sender]!"
+  → Dump appears instantly in Mom's Activity
+  → No link sharing needed!
+```
+
+### Implementation Details
+
+1. **Lookup**: `db.findClaimedRecipientByName(senderId, name)`
+   - Searches previous dumps from this sender
+   - Finds recipients with matching name (case-insensitive) who have claimed
+   - Returns their `user_id` if found
+
+2. **Connected Recipients**: When match found:
+   - Create recipient with `user_id` pre-linked
+   - Set `claimed_at` to now (already claimed)
+   - No `claim_code` generated
+   - Attempt push notification
+
+3. **New Recipients**: When no match:
+   - Generate claim code (existing flow)
+   - Sender shares link manually
+
+### Response Format
+
+The API now returns richer recipient data:
+
+```json
+{
+  "recipients": [
+    {
+      "name": "Mom",
+      "link": "https://hitpost.vercel.app/view/abc123",
+      "claimCode": null,        // null = already connected
+      "isConnected": true,      // true = push was attempted
+      "pushSent": true          // true = push notification sent
+    },
+    {
+      "name": "New Friend",
+      "link": "https://hitpost.vercel.app/view/def456",
+      "claimCode": "VIBE42",    // needs to claim
+      "isConnected": false,
+      "pushSent": false
+    }
+  ]
+}
+```
+
+### Benefits
+
+- **Zero friction for return recipients** - No link sharing after first claim
+- **Names as relationship keys** - "Mom" from Alice is different from "Mom" from Bob
+- **Progressive enhancement** - First contact manual, then automatic
+- **No contact sync required** - System learns relationships from usage
+
+---
+
 ## Database Schema (Key Tables)
 
 ### users
@@ -289,30 +363,37 @@ Example invite text:
    - `users.email` now nullable
    - `dump_recipients.name`, `claim_code`, `claimed_at`
 
+5. **Claim Once, Push Forever** - Smart recipient detection
+   - `db.findClaimedRecipientByName()` finds previously connected recipients
+   - Connected recipients get push notifications, no claim code needed
+   - New recipients get claim codes (first-time flow)
+   - API returns `isConnected` and `pushSent` status per recipient
+
 ### In Progress
 
-1. **Testing Flows**
-   - Sender flow: Create dump → Add recipients → Send → Get claim codes
-   - Receiver flow: Open link → View → Install app → Enter code → See in Activity
+1. **Push Notification Integration**
+   - Push tokens stored in database (table exists)
+   - Push logic implemented (logs for now)
+   - TODO: Integrate with APNs (iOS) and FCM (Android)
 
 2. **UI Polish**
-   - Claim code display on web view
+   - Show connected vs new recipients differently in send flow
    - "Got a code?" button in Activity tab
 
 ### Next Steps
 
 1. **Test end-to-end flows**
-   - Manually test sender creating dump with recipients
+   - Test sender creating dump with new recipient → claim code generated
    - Test receiver claiming with code
-   - Verify dump appears in Activity
+   - Test sender sending to same recipient again → push sent, no code
 
 2. **Add email backup option**
    - Settings page with "Add email for backup"
    - Link device users to email for recovery
 
-3. **Push notifications** (deferred)
-   - Notify when someone views your dump
-   - Notify when you receive a dump
+3. **Real push notifications**
+   - Integrate APNs for iOS
+   - Integrate FCM for Android
 
 ---
 
@@ -322,13 +403,13 @@ Example invite text:
 
 | File | Purpose |
 |------|---------|
-| `src/lib/db.ts` | Database operations, includes `generateClaimCode()` |
+| `src/lib/db.ts` | Database operations, includes `generateClaimCode()`, `findClaimedRecipientByName()`, `createLinkedRecipient()` |
 | `src/lib/auth.ts` | Session management, `createSessionFromDeviceId()` |
 | `src/components/AutoLogin.tsx` | Auto-login component for new users |
 | `src/app/api/auth/device/route.ts` | Device auth endpoint |
 | `src/app/api/claim/route.ts` | Claim code validation endpoint |
-| `src/app/api/dumps/route.ts` | Create dump with recipients |
-| `src/app/api/dumps/[dumpId]/send/route.ts` | Send draft dump to recipients |
+| `src/app/api/dumps/route.ts` | Create dump with recipients (includes claim-once-push-forever logic) |
+| `src/app/api/dumps/[dumpId]/send/route.ts` | Send draft dump to recipients (includes claim-once-push-forever logic) |
 | `src/app/api/dev/migrate/route.ts` | Database migrations |
 
 ### Environment

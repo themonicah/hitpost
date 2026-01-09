@@ -390,6 +390,37 @@ export const db = {
     return updated ?? null;
   },
 
+  // Find a previously claimed recipient by sender and name
+  // Used for "claim once, push forever" - if sender sent to "Mom" before and she claimed,
+  // we can find her user_id and push directly instead of generating a new claim code
+  async findClaimedRecipientByName(senderId: string, name: string): Promise<{ user_id: string; name: string } | null> {
+    const { rows } = await sql<{ user_id: string; name: string }>`
+      SELECT DISTINCT dr.user_id, dr.name
+      FROM dump_recipients dr
+      JOIN dumps d ON dr.dump_id = d.id
+      WHERE d.sender_id = ${senderId}
+        AND LOWER(dr.name) = LOWER(${name})
+        AND dr.user_id IS NOT NULL
+        AND dr.claimed_at IS NOT NULL
+      LIMIT 1
+    `;
+    return rows[0] || null;
+  },
+
+  // Create a recipient that's already linked to a known user (for returning recipients)
+  async createLinkedRecipient(recipient: {
+    id: string;
+    dump_id: string;
+    name: string;
+    user_id: string;
+    token: string;
+  }): Promise<void> {
+    await sql`
+      INSERT INTO dump_recipients (id, dump_id, name, user_id, token, claimed_at)
+      VALUES (${recipient.id}, ${recipient.dump_id}, ${recipient.name}, ${recipient.user_id}, ${recipient.token}::uuid, NOW())
+    `;
+  },
+
   async markRecipientViewed(id: string): Promise<void> {
     await sql`
       UPDATE dump_recipients

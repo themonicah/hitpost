@@ -8,6 +8,36 @@ interface RecipientInput {
   email?: string;
 }
 
+interface CreatedRecipient {
+  name: string;
+  link: string;
+  claimCode: string | null;
+  isConnected: boolean;
+  pushSent: boolean;
+}
+
+// Send push notification to a user
+async function sendPushNotification(
+  userId: string,
+  title: string,
+  body: string,
+  data?: Record<string, string>
+): Promise<boolean> {
+  try {
+    const pushTokens = await db.getPushTokensByUser(userId);
+    if (pushTokens.length === 0) {
+      return false;
+    }
+    // Log for now - TODO: integrate with APNs/FCM
+    for (const pushToken of pushTokens) {
+      console.log(`PUSH [${pushToken.platform}]: ${title} - ${body}`);
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function POST(req: NextRequest) {
   const user = await getSession();
   if (!user) {
@@ -83,33 +113,71 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ dumpId, success: true });
     }
 
-    // Create recipients
+    // Create recipients with "claim once, push forever" logic
     const requestUrl = new URL(req.url);
     const baseUrl = `${requestUrl.protocol}//${requestUrl.host}`;
 
-    const createdRecipients: { name: string; link: string; claimCode: string }[] = [];
+    const createdRecipients: CreatedRecipient[] = [];
 
     for (const recipient of recipients as RecipientInput[]) {
       const name = typeof recipient === "string" ? recipient : recipient.name;
-      const email = typeof recipient === "string" ? undefined : recipient.email;
 
       const recipientId = uuid();
       const token = uuid();
-      const claimCode = generateClaimCode();
 
-      await db.createRecipient({
-        id: recipientId,
-        dump_id: dumpId,
-        name,
-        email,
-        token,
-        claim_code: claimCode,
-      });
+      // Check if this sender has sent to this name before and they claimed
+      const existingConnection = await db.findClaimedRecipientByName(user.id, name);
 
-      const link = `${baseUrl}/view/${token}`;
-      createdRecipients.push({ name, link, claimCode });
+      if (existingConnection) {
+        // "Claim once, push forever" - recipient is already connected!
+        await db.createLinkedRecipient({
+          id: recipientId,
+          dump_id: dumpId,
+          name,
+          user_id: existingConnection.user_id,
+          token,
+        });
 
-      console.log(`RECIPIENT CREATED: ${name} - ${link} - Code: ${claimCode}`);
+        // Send push notification
+        const senderName = user.email || "Someone";
+        const pushSent = await sendPushNotification(
+          existingConnection.user_id,
+          "New meme dump!",
+          `${senderName} sent you ${memeIdList.length} meme${memeIdList.length > 1 ? "s" : ""}`,
+          { dumpId, type: "new_dump" }
+        );
+
+        createdRecipients.push({
+          name,
+          link: `${baseUrl}/view/${token}`,
+          claimCode: null,
+          isConnected: true,
+          pushSent,
+        });
+
+        console.log(`CONNECTED RECIPIENT: ${name} - push ${pushSent ? "sent" : "failed"}`);
+      } else {
+        // New recipient - needs claim code
+        const claimCode = generateClaimCode();
+
+        await db.createRecipient({
+          id: recipientId,
+          dump_id: dumpId,
+          name,
+          token,
+          claim_code: claimCode,
+        });
+
+        createdRecipients.push({
+          name,
+          link: `${baseUrl}/view/${token}`,
+          claimCode,
+          isConnected: false,
+          pushSent: false,
+        });
+
+        console.log(`NEW RECIPIENT: ${name} - Code: ${claimCode}`);
+      }
     }
 
     return NextResponse.json({ dumpId, success: true, recipients: createdRecipients });
