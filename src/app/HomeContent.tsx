@@ -6,9 +6,9 @@ import MemeGrid from "@/components/MemeGrid";
 import MemeViewer from "@/components/MemeViewer";
 import FunLoader from "@/components/FunLoader";
 import DumpsBar, { DumpsBarRef } from "@/components/DumpsBar";
-import DumpDrawer from "@/components/DumpDrawer";
 import DumpCreator from "@/components/DumpCreator";
 import AddToDumpModal from "@/components/AddToDumpModal";
+import SendDumpModal from "@/components/SendDumpModal";
 
 interface HomeContentProps {
   userId: string;
@@ -20,12 +20,37 @@ export default function HomeContent({ userId }: HomeContentProps) {
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
-  const [selectedDumpId, setSelectedDumpId] = useState<string | null>(null);
   const [showDumpCreator, setShowDumpCreator] = useState(false);
   const [showAddToDump, setShowAddToDump] = useState(false);
+  const [showSendModal, setShowSendModal] = useState(false);
+  const [dumpMemesToSend, setDumpMemesToSend] = useState<Meme[]>([]);
   const [uploading, setUploading] = useState(false);
   const dumpsBarRef = useRef<DumpsBarRef>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // When a dump is selected from the bar, fetch its memes and open send modal
+  async function handleDumpSelect(dumpId: string) {
+    try {
+      const res = await fetch(`/api/dumps/${dumpId}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.dump?.memes) {
+          // Convert to Meme type
+          const dumpMemes: Meme[] = data.dump.memes.map((m: { id: string; file_url: string; file_type: string }) => ({
+            id: m.id,
+            file_url: m.file_url,
+            file_type: m.file_type,
+            user_id: userId,
+            created_at: "",
+          }));
+          setDumpMemesToSend(dumpMemes);
+          setShowSendModal(true);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load dump:", err);
+    }
+  }
 
   const fetchMemes = useCallback(async () => {
     try {
@@ -183,16 +208,23 @@ export default function HomeContent({ userId }: HomeContentProps) {
       {/* Dumps Bar - floating at bottom */}
       <DumpsBar
         ref={dumpsBarRef}
-        onDumpSelect={setSelectedDumpId}
+        onDumpSelect={handleDumpSelect}
         onCreateNew={() => setShowDumpCreator(true)}
-        selectedDumpId={selectedDumpId}
       />
 
-      {/* Dump Detail Drawer */}
-      <DumpDrawer
-        dumpId={selectedDumpId}
-        onClose={() => setSelectedDumpId(null)}
-        onUpdate={() => dumpsBarRef.current?.refresh()}
+      {/* Send Modal - opens when clicking a dump */}
+      <SendDumpModal
+        isOpen={showSendModal}
+        onClose={() => {
+          setShowSendModal(false);
+          setDumpMemesToSend([]);
+        }}
+        selectedMemes={dumpMemesToSend}
+        onSent={() => {
+          setShowSendModal(false);
+          setDumpMemesToSend([]);
+          dumpsBarRef.current?.refresh();
+        }}
       />
 
       {/* Spacer for dumps bar */}
