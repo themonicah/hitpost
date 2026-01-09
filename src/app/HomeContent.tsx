@@ -5,6 +5,7 @@ import { Meme } from "@/lib/db";
 import MemeGrid from "@/components/MemeGrid";
 import MemeViewer from "@/components/MemeViewer";
 import FunLoader from "@/components/FunLoader";
+import EmptyState from "@/components/EmptyState";
 import DumpsBar, { DumpsBarRef } from "@/components/DumpsBar";
 import DumpCreator from "@/components/DumpCreator";
 import AddToDumpModal from "@/components/AddToDumpModal";
@@ -17,6 +18,7 @@ interface HomeContentProps {
 export default function HomeContent({ userId }: HomeContentProps) {
   const [memes, setMemes] = useState<Meme[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
@@ -53,12 +55,17 @@ export default function HomeContent({ userId }: HomeContentProps) {
   }
 
   const fetchMemes = useCallback(async () => {
+    setError(null);
     try {
       const res = await fetch("/api/memes");
       if (res.ok) {
         const data = await res.json();
         setMemes(data.memes);
+      } else {
+        setError("Failed to load memes");
       }
+    } catch {
+      setError("Network error. Check your connection.");
     } finally {
       setLoading(false);
     }
@@ -108,7 +115,66 @@ export default function HomeContent({ userId }: HomeContentProps) {
     );
   }
 
+  // Error state with retry
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center">
+        <div className="text-5xl mb-4">😵</div>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+          Oops, something went wrong
+        </h3>
+        <p className="text-gray-500 mb-6">{error}</p>
+        <button
+          onClick={() => {
+            setLoading(true);
+            fetchMemes();
+          }}
+          className="px-6 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-full font-medium min-h-[44px]"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
   const selectedMemes = memes.filter((m) => selectedIds.has(m.id));
+
+  // Empty state when no memes
+  if (memes.length === 0) {
+    return (
+      <div className="space-y-3">
+        {/* Hidden file input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*,video/*"
+          multiple
+          onChange={(e) => handleUpload(e.target.files)}
+          className="hidden"
+        />
+
+        <div className="bg-white dark:bg-gray-900 rounded-2xl">
+          <EmptyState
+            type="memes"
+            title="No memes yet"
+            description="Upload some memes to get started. Then you can create dumps and share them with friends!"
+            action={{
+              label: "Upload Memes",
+              onClick: () => fileInputRef.current?.click(),
+            }}
+          />
+        </div>
+
+        {/* Still show DumpsBar for drafts */}
+        <DumpsBar
+          ref={dumpsBarRef}
+          onDumpSelect={handleDumpSelect}
+          onCreateNew={() => setShowDumpCreator(true)}
+        />
+        <div className="h-28" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-3">
@@ -132,14 +198,14 @@ export default function HomeContent({ userId }: HomeContentProps) {
           {selectMode && selectedIds.size > 0 && (
             <button
               onClick={handleAddToDump}
-              className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-full text-sm font-medium"
+              className="px-4 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-full text-sm font-medium min-h-[44px]"
             >
               Add to Dump ({selectedIds.size})
             </button>
           )}
           <button
             onClick={toggleSelectMode}
-            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+            className={`px-4 py-2.5 rounded-full text-sm font-medium transition-colors min-h-[44px] ${
               selectMode
                 ? "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
                 : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"

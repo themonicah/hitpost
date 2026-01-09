@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Meme } from "@/lib/db";
 import { useRouter } from "next/navigation";
 import Confetti from "./Confetti";
+import FunLoader from "./FunLoader";
 
 interface Dump {
   id: string;
@@ -176,7 +177,14 @@ export default function AddToDumpModal({
           </div>
 
           {/* Content */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div className="flex-1 overflow-y-auto p-4 pb-safe space-y-4">
+            {/* Loading state */}
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <FunLoader />
+              </div>
+            ) : (
+            <>
             {/* Meme preview */}
             <div className="flex gap-1 justify-center">
               {selectedMemes.slice(0, 5).map((meme) => (
@@ -343,6 +351,8 @@ export default function AddToDumpModal({
             )}
 
             {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+            </>
+            )}
           </div>
         </div>
       </div>

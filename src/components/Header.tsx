@@ -65,9 +65,10 @@ export default function Header({
             {showBack && (
               <button
                 onClick={() => router.back()}
-                className="p-2 -ml-2 text-blue-500 hover:text-blue-600"
+                aria-label="Go back"
+                className="w-10 h-10 -ml-2 text-blue-500 hover:text-blue-600 flex items-center justify-center"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
               </button>
@@ -87,13 +88,15 @@ export default function Header({
             {/* Activity button */}
             <Link
               href={isActivityPage ? "/" : "/activity"}
-              className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors ${
+              aria-label={isActivityPage ? "Go to home" : "View activity"}
+              aria-current={isActivityPage ? "page" : undefined}
+              className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
                 isActivityPage
                   ? "bg-blue-500 text-white"
                   : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
               }`}
             >
-              <svg className="w-5 h-5" fill={isActivityPage ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5" fill={isActivityPage ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={isActivityPage ? 0 : 1.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
               </svg>
             </Link>
@@ -102,9 +105,12 @@ export default function Header({
             <div className="relative">
               <button
                 onClick={() => setShowMenu(!showMenu)}
-                className="w-9 h-9 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+                aria-label="Account menu"
+                aria-expanded={showMenu}
+                aria-haspopup="menu"
+                className="w-10 h-10 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
               </button>
@@ -115,8 +121,13 @@ export default function Header({
                   <div
                     className="fixed inset-0 z-10"
                     onClick={() => setShowMenu(false)}
+                    aria-hidden="true"
                   />
-                  <div className="absolute right-0 top-10 z-20 w-48 bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-100 dark:border-gray-800 py-2">
+                  <div
+                    role="menu"
+                    aria-label="Account options"
+                    className="absolute right-0 top-11 z-20 w-48 bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-100 dark:border-gray-800 py-2 animate-scaleIn"
+                  >
                     <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-800">
                       <p className="text-sm font-medium truncate">{email || "Guest"}</p>
                       {!email && (
@@ -125,7 +136,8 @@ export default function Header({
                     </div>
                     <button
                       onClick={handleLogout}
-                      className="w-full px-4 py-2 text-left text-sm text-red-500 hover:bg-gray-50 dark:hover:bg-gray-800"
+                      role="menuitem"
+                      className="w-full px-4 py-2.5 text-left text-sm text-red-500 hover:bg-gray-50 dark:hover:bg-gray-800 min-h-[44px]"
                     >
                       Sign out
                     </button>

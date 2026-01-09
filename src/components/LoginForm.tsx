@@ -52,27 +52,34 @@ export default function LoginForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4" aria-label="Sign in form">
       <div>
+        <label htmlFor="email-input" className="sr-only">
+          Email address
+        </label>
         <input
+          id="email-input"
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="drop your email here"
           required
-          className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 text-lg"
+          aria-describedby={error ? "login-error" : undefined}
+          aria-invalid={!!error}
+          className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 text-lg min-h-[48px]"
           disabled={loading}
         />
       </div>
 
       {error && (
-        <p className="text-red-500 text-sm text-center">{error}</p>
+        <p id="login-error" role="alert" className="text-red-500 text-sm text-center">{error}</p>
       )}
 
       <button
         type="submit"
         disabled={loading || !email}
-        className="w-full py-3 px-4 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-colors text-lg"
+        aria-busy={loading}
+        className="w-full py-3 px-4 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-colors text-lg min-h-[48px]"
       >
         {loading ? loadingMsg : "let me in"}
       </button>

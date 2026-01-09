@@ -113,9 +113,9 @@ export default function ViewDumpContent({
                 style={{ transform: `rotate(${(i - 1) * 5}deg)` }}
               >
                 {meme.file_type === "video" ? (
-                  <video src={meme.file_url} className="w-full h-full object-cover" muted />
+                  <video src={meme.file_url} className="w-full h-full object-cover" muted playsInline aria-hidden="true" />
                 ) : (
-                  <img src={meme.file_url} alt="" className="w-full h-full object-cover" />
+                  <img src={meme.file_url} alt="Meme preview thumbnail" className="w-full h-full object-cover" />
                 )}
               </div>
             ))}
@@ -135,7 +135,8 @@ export default function ViewDumpContent({
           {/* CTA */}
           <button
             onClick={() => setView("slideshow")}
-            className="w-full max-w-xs py-4 bg-gradient-to-r from-amber-400 to-orange-500 text-black font-bold text-lg rounded-2xl shadow-lg active:scale-95 transition-transform"
+            aria-label={`View ${memes.length} memes from ${senderName}`}
+            className="w-full max-w-xs py-4 bg-gradient-to-r from-amber-400 to-orange-500 text-black font-bold text-lg rounded-2xl shadow-lg active:scale-95 transition-transform min-h-[56px]"
           >
             See Memes
           </button>
@@ -175,9 +176,10 @@ export default function ViewDumpContent({
         <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-4 pt-14 pb-4">
           <button
             onClick={() => setView("grid")}
-            className="text-white/70 text-sm font-medium flex items-center gap-1"
+            aria-label="View all memes in grid"
+            className="text-white/70 text-sm font-medium flex items-center gap-1 min-h-[44px] px-2"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
             </svg>
             Grid
@@ -199,11 +201,12 @@ export default function ViewDumpContent({
                   controls
                   autoPlay
                   playsInline
+                  aria-label={`Video meme ${currentIndex + 1} of ${memes.length}`}
                 />
               ) : (
                 <img
                   src={currentMeme.file_url}
-                  alt=""
+                  alt={`Meme ${currentIndex + 1} of ${memes.length}`}
                   className="max-w-full max-h-[70vh] rounded-xl object-contain"
                 />
               )}
@@ -212,12 +215,14 @@ export default function ViewDumpContent({
         </div>
 
         {/* Reaction bar */}
-        <div className="px-4 pb-4">
+        <div className="px-4 pb-4" role="group" aria-label="React to this meme">
           <div className="flex justify-center gap-4 mb-4">
             {EMOJIS.map((emoji) => (
               <button
                 key={emoji}
                 onClick={() => handleReaction(currentMeme.id, emoji)}
+                aria-label={`React with ${emoji}${reactions[currentMeme.id] === emoji ? " (selected)" : ""}`}
+                aria-pressed={reactions[currentMeme.id] === emoji}
                 className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl transition-all ${
                   reactions[currentMeme.id] === emoji
                     ? "bg-white/30 scale-110"
@@ -231,11 +236,12 @@ export default function ViewDumpContent({
         </div>
 
         {/* Navigation */}
-        <div className="px-4 pb-8 flex gap-3">
+        <div className="px-4 pb-8 pb-safe flex gap-3">
           <button
             onClick={() => setCurrentIndex((i) => Math.max(0, i - 1))}
             disabled={currentIndex === 0}
-            className="flex-1 py-3 bg-white/10 text-white font-medium rounded-xl disabled:opacity-30"
+            aria-label="Previous meme"
+            className="flex-1 py-3 bg-white/10 text-white font-medium rounded-xl disabled:opacity-30 min-h-[48px]"
           >
             Previous
           </button>
@@ -247,7 +253,8 @@ export default function ViewDumpContent({
                 setView("grid");
               }
             }}
-            className="flex-1 py-3 bg-white/20 text-white font-medium rounded-xl"
+            aria-label={currentIndex < memes.length - 1 ? "Next meme" : "View all memes"}
+            className="flex-1 py-3 bg-white/20 text-white font-medium rounded-xl min-h-[48px]"
           >
             {currentIndex < memes.length - 1 ? "Next" : "See All"}
           </button>
@@ -297,10 +304,11 @@ export default function ViewDumpContent({
               setCurrentIndex(index);
               setView("slideshow");
             }}
+            aria-label={`View ${meme.file_type === "video" ? "video" : "image"} meme ${index + 1}${reactions[meme.id] ? `, reacted with ${reactions[meme.id]}` : ""}`}
             className="aspect-square relative bg-white/5"
           >
             {meme.file_type === "video" ? (
-              <video src={meme.file_url} className="w-full h-full object-cover" muted />
+              <video src={meme.file_url} className="w-full h-full object-cover" muted playsInline aria-hidden="true" />
             ) : (
               <img src={meme.file_url} alt="" className="w-full h-full object-cover" />
             )}
@@ -323,8 +331,11 @@ export default function ViewDumpContent({
       {/* Leave a note section */}
       <div className="p-4 mt-4">
         <div className="bg-white/5 rounded-2xl p-4">
-          <h2 className="text-white font-semibold mb-3">Leave a note for {senderName}</h2>
+          <label htmlFor="recipient-note" className="text-white font-semibold mb-3 block">
+            Leave a note for {senderName}
+          </label>
           <textarea
+            id="recipient-note"
             value={note}
             onChange={(e) => {
               setNote(e.target.value);
@@ -338,7 +349,7 @@ export default function ViewDumpContent({
           <button
             onClick={saveNote}
             disabled={saving || noteSaved || !note.trim()}
-            className="w-full py-3 bg-white text-black font-bold rounded-xl disabled:opacity-30"
+            className="w-full py-3 bg-white text-black font-bold rounded-xl disabled:opacity-30 min-h-[48px]"
           >
             {saving ? "Saving..." : noteSaved ? "Saved!" : "Send Note"}
           </button>

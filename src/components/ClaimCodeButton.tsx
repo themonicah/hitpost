@@ -59,7 +59,8 @@ export default function ClaimCodeButton() {
       {/* Got a code? Button */}
       <button
         onClick={() => setIsOpen(true)}
-        className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-2xl shadow-sm hover:shadow-md transition-all"
+        aria-label="Enter claim code to receive a dump"
+        className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-2xl shadow-sm hover:shadow-md transition-all min-h-[72px]"
       >
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
@@ -94,7 +95,12 @@ export default function ClaimCodeButton() {
           />
 
           {/* Modal content */}
-          <div className="relative w-full max-w-sm bg-white dark:bg-gray-900 rounded-3xl shadow-xl p-6 animate-scaleIn">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="claim-modal-title"
+            className="relative w-full max-w-sm bg-white dark:bg-gray-900 rounded-3xl shadow-xl p-6 animate-scaleIn"
+          >
             {success ? (
               // Success state
               <div className="text-center py-4">
@@ -117,13 +123,17 @@ export default function ClaimCodeButton() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
                     </svg>
                   </div>
-                  <h3 className="text-xl font-bold mb-1">Enter your code</h3>
+                  <h3 id="claim-modal-title" className="text-xl font-bold mb-1">Enter your code</h3>
                   <p className="text-sm text-gray-500">
                     Enter the code from the link you received
                   </p>
                 </div>
 
+                <label htmlFor="claim-code-input" className="sr-only">
+                  Claim code
+                </label>
                 <input
+                  id="claim-code-input"
                   type="text"
                   value={code}
                   onChange={(e) => {
@@ -133,6 +143,8 @@ export default function ClaimCodeButton() {
                   placeholder="VIBE42"
                   maxLength={10}
                   autoFocus
+                  aria-describedby={error ? "claim-error" : undefined}
+                  aria-invalid={!!error}
                   className="w-full text-center text-2xl font-mono font-bold tracking-widest px-4 py-4 border-2 border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-800 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 uppercase"
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
@@ -142,13 +154,13 @@ export default function ClaimCodeButton() {
                 />
 
                 {error && (
-                  <p className="text-red-500 text-sm text-center mt-2">{error}</p>
+                  <p id="claim-error" role="alert" className="text-red-500 text-sm text-center mt-2">{error}</p>
                 )}
 
                 <button
                   onClick={handleClaim}
                   disabled={loading || !code.trim()}
-                  className="w-full mt-4 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full mt-4 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed min-h-[48px]"
                 >
                   {loading ? "Claiming..." : "Claim Dump"}
                 </button>
@@ -159,7 +171,7 @@ export default function ClaimCodeButton() {
                     setCode("");
                     setError("");
                   }}
-                  className="w-full mt-2 py-3 text-gray-500 font-medium"
+                  className="w-full mt-2 py-3 text-gray-500 font-medium min-h-[48px]"
                 >
                   Cancel
                 </button>

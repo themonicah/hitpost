@@ -31,6 +31,14 @@ export default function MemeViewer({
   const [dragY, setDragY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const dragStartY = useRef<number | null>(null);
+  const [videoLoading, setVideoLoading] = useState(true);
+  const [videoError, setVideoError] = useState(false);
+
+  // Reset video state when meme changes
+  useEffect(() => {
+    setVideoLoading(true);
+    setVideoError(false);
+  }, [currentIndex]);
 
   const currentMeme = memes[currentIndex];
 
@@ -238,18 +246,52 @@ export default function MemeViewer({
         onClick={handleTap}
       >
         {currentMeme.file_type === "video" ? (
-          <video
-            ref={videoRef}
-            src={currentMeme.file_url}
-            className="max-w-full max-h-full object-contain"
-            controls
-            playsInline
-            autoPlay
-          />
+          <div className="relative">
+            {/* Video loading indicator */}
+            {videoLoading && !videoError && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-10 h-10 border-3 border-white/30 border-t-white rounded-full animate-spin" />
+              </div>
+            )}
+            {/* Video error state */}
+            {videoError && (
+              <div className="flex flex-col items-center justify-center text-white/60 p-8">
+                <div className="text-4xl mb-3">📹</div>
+                <p className="text-sm">Video failed to load</p>
+                <button
+                  onClick={() => {
+                    setVideoError(false);
+                    setVideoLoading(true);
+                    if (videoRef.current) {
+                      videoRef.current.load();
+                    }
+                  }}
+                  className="mt-3 px-4 py-2 bg-white/20 rounded-full text-sm hover:bg-white/30"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+            {!videoError && (
+              <video
+                ref={videoRef}
+                src={currentMeme.file_url}
+                className={`max-w-full max-h-full object-contain ${videoLoading ? 'opacity-0' : 'opacity-100'} transition-opacity`}
+                controls
+                playsInline
+                autoPlay
+                onCanPlay={() => setVideoLoading(false)}
+                onError={() => {
+                  setVideoLoading(false);
+                  setVideoError(true);
+                }}
+              />
+            )}
+          </div>
         ) : (
           <img
             src={currentMeme.file_url}
-            alt=""
+            alt={`Meme ${currentIndex + 1}`}
             className="max-w-full max-h-full object-contain"
           />
         )}

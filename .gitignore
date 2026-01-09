@@ -31,6 +31,12 @@ yarn-error.log*
 # env files
 .env*
 
+# Firebase credentials (NEVER commit these)
+*-firebase-adminsdk-*.json
+GoogleService-Info.plist
+google-services.json
+firebase-service-account*.json
+
 # vercel
 .vercel
 

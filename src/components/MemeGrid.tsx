@@ -3,6 +3,25 @@
 import { Meme } from "@/lib/db";
 import { useState, useRef } from "react";
 
+function ImageWithSkeleton({ src, alt, className }: { src: string; alt: string; className: string }) {
+  const [loaded, setLoaded] = useState(false);
+
+  return (
+    <>
+      {!loaded && (
+        <div className="absolute inset-0 bg-gray-200 dark:bg-gray-700 animate-pulse" />
+      )}
+      <img
+        src={src}
+        alt={alt}
+        className={`${className} ${loaded ? 'opacity-100' : 'opacity-0'} transition-opacity duration-200`}
+        loading="lazy"
+        onLoad={() => setLoaded(true)}
+      />
+    </>
+  );
+}
+
 interface MemeGridProps {
   memes: Meme[];
   selectable?: boolean;
@@ -74,14 +93,16 @@ export default function MemeGrid({
   }
 
   return (
-    <div className="grid grid-cols-4 gap-1">
+    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
       {/* Add button as first item */}
       {onAddClick && (
         <button
           onClick={onAddClick}
-          className="aspect-square rounded-xl bg-white/10 dark:bg-white/5 border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center transition-all active:scale-95 hover:border-gray-400 dark:hover:border-gray-600"
+          aria-label="Upload memes"
+          className="aspect-square rounded-xl bg-white/10 dark:bg-white/5 border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center transition-all active:scale-95 hover:border-gray-400 dark:hover:border-gray-600 min-h-[80px]"
         >
-          <span className="text-2xl text-gray-400">+</span>
+          <span className="text-3xl text-gray-400">+</span>
+          <span className="text-xs text-gray-400 mt-1">Add</span>
         </button>
       )}
       {memes.map((meme, index) => {
@@ -92,9 +113,10 @@ export default function MemeGrid({
         const showHeart = heartId === meme.id;
 
         return (
-          <div
+          <button
             key={meme.id}
-            className={`relative aspect-square overflow-hidden rounded-xl bg-gray-100 dark:bg-gray-800 transition-all duration-150 ${
+            aria-label={`${meme.file_type === "video" ? "Video" : "Image"} meme ${index + 1}${isSelected ? ", selected" : ""}`}
+            className={`relative aspect-square overflow-hidden rounded-xl bg-gray-100 dark:bg-gray-800 transition-all duration-150 min-h-[80px] ${
               selectable || onMemeClick ? "cursor-pointer" : ""
             } ${isSelected ? "ring-2 ring-blue-500 ring-offset-1 ring-offset-black" : ""} ${
               isDeleting ? "opacity-50" : ""
@@ -117,11 +139,10 @@ export default function MemeGrid({
                 preload="metadata"
               />
             ) : (
-              <img
+              <ImageWithSkeleton
                 src={meme.file_url}
-                alt=""
+                alt={`Meme ${index + 1}`}
                 className="w-full h-full object-cover"
-                loading="lazy"
               />
             )}
 
@@ -145,7 +166,7 @@ export default function MemeGrid({
             )}
 
 {/* Delete moved to detail view */}
-          </div>
+          </button>
         );
       })}
     </div>

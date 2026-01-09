@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Meme } from "@/lib/db";
 import { useRouter } from "next/navigation";
 import Confetti from "./Confetti";
+import FunLoader from "./FunLoader";
 
 const SENDING_MESSAGES = [
   "sending the vibes...",
@@ -272,7 +273,7 @@ export default function SendDumpModal({
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="flex-1 overflow-y-auto p-4 pb-safe space-y-4">
           {/* Meme preview */}
           <div className="text-center">
             <div className="flex justify-center gap-1 mb-2">
@@ -323,7 +324,7 @@ export default function SendDumpModal({
             <h3 className="text-sm font-medium text-gray-500 mb-2">Send to:</h3>
             {loadingGroups ? (
               <div className="flex justify-center py-4">
-                <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                <FunLoader />
               </div>
             ) : (
               <div className="space-y-2">

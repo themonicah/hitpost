@@ -113,14 +113,17 @@ export default function MemeUploader({ onUpload, compact = false }: MemeUploader
           onChange={(e) => uploadFiles(e.target.files)}
           className="hidden"
           disabled={uploading}
+          aria-label="Select memes to upload"
         />
         <button
           type="button"
           onClick={handleClick}
           disabled={uploading}
-          className="flex items-center gap-3 flex-1"
+          aria-label="Add memes"
+          aria-busy={uploading}
+          className="flex items-center gap-3 flex-1 min-h-[44px]"
         >
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-xl flex items-center justify-center shadow-md">
+          <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-xl flex items-center justify-center shadow-md" aria-hidden="true">
             {uploading ? (
               <span className="text-lg animate-spin">⏳</span>
             ) : (
@@ -134,7 +137,7 @@ export default function MemeUploader({ onUpload, compact = false }: MemeUploader
             <p className="text-xs text-gray-400">photos & videos</p>
           </div>
         </button>
-        {error && <p className="text-xs text-red-500">{error}</p>}
+        {error && <p role="alert" className="text-xs text-red-500">{error}</p>}
       </div>
     );
   }
@@ -162,6 +165,7 @@ export default function MemeUploader({ onUpload, compact = false }: MemeUploader
         onChange={(e) => uploadFiles(e.target.files)}
         className="hidden"
         disabled={uploading}
+        aria-label="Select memes to upload"
       />
 
       {/* Clickable upload button - better for mobile */}
@@ -169,9 +173,11 @@ export default function MemeUploader({ onUpload, compact = false }: MemeUploader
         type="button"
         onClick={handleClick}
         disabled={uploading}
-        className="w-full"
+        aria-label="Upload memes"
+        aria-busy={uploading}
+        className="w-full min-h-[120px]"
       >
-        <div className="w-14 h-14 mx-auto mb-3 bg-gradient-to-br from-blue-400 to-purple-500 rounded-2xl flex items-center justify-center shadow-lg transform transition-transform hover:scale-110 active:scale-95">
+        <div className="w-14 h-14 mx-auto mb-3 bg-gradient-to-br from-blue-400 to-purple-500 rounded-2xl flex items-center justify-center shadow-lg transform transition-transform hover:scale-110 active:scale-95" aria-hidden="true">
           {uploading ? (
             <span className="text-2xl animate-bounce">⏳</span>
           ) : (
@@ -188,7 +194,7 @@ export default function MemeUploader({ onUpload, compact = false }: MemeUploader
 
       {/* Error message */}
       {error && (
-        <p className="mt-3 text-sm text-red-500">{error}</p>
+        <p role="alert" className="mt-3 text-sm text-red-500">{error}</p>
       )}
     </div>
   );

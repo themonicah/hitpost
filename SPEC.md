@@ -431,3 +431,169 @@ Example invite text:
 2. **Names not Emails** - Senders share via messaging apps where they have phone numbers, not emails
 3. **Claim Codes over Deep Links** - App Store install breaks deep link context; codes are reliable
 4. **Web Viewer First** - Non-app users can view dumps, then convert to app users
+
+---
+
+## Security Checklist
+
+### Credentials & Secrets
+- [ ] **Never commit secrets to git** - All API keys, service accounts, and credentials must be in environment variables only
+- [ ] **`.gitignore` updated** - Ensure patterns for `*firebase*.json`, `GoogleService-Info.plist`, `.env*` are excluded
+- [ ] **Rotate compromised keys immediately** - If any key is exposed, revoke and regenerate
+- [ ] **Use Vercel Environment Variables** - Store `FIREBASE_SERVICE_ACCOUNT`, database URLs, and all secrets in Vercel dashboard
+
+### Database Security
+- [ ] **SQL injection prevention** - Use parameterized queries (already using `sql` template literals from @vercel/postgres)
+- [ ] **Authorization checks** - Every API endpoint must verify `user.id` matches resource ownership
+- [ ] **Input validation** - Validate and sanitize all user inputs before database operations
+- [ ] **Rate limiting** - Consider adding rate limits to prevent abuse (especially on auth and claim endpoints)
+
+### API Security
+- [ ] **Authentication on all protected routes** - Use `getSession()` check on every API that requires auth
+- [ ] **CORS configuration** - Verify CORS settings in production
+- [ ] **HTTPS only** - All production traffic over HTTPS (Vercel handles this)
+
+### Client Security
+- [ ] **No secrets in client code** - Never include API keys or service accounts in frontend code
+- [ ] **Secure storage** - Device ID stored in localStorage (acceptable for this use case)
+- [ ] **XSS prevention** - React handles most XSS, but avoid `dangerouslySetInnerHTML`
+
+### Push Notifications
+- [ ] **APNs key secured** - Uploaded to Firebase only, never in codebase
+- [ ] **FCM service account** - Stored in Vercel env vars only
+- [ ] **Token validation** - Push tokens validated before sending
+
+### Regular Audits
+- [ ] Review `.gitignore` before major releases
+- [ ] Check Vercel environment variables are set correctly
+- [ ] Audit database access patterns
+- [ ] Review API endpoints for proper authorization
+- [ ] Test with security scanner (OWASP ZAP, etc.)
+
+---
+
+## Future Features (TODO)
+
+### Direct Connection System (No Dump Required)
+
+Currently, connections only happen through the dump flow (send dump → recipient claims code → connected). This feature adds ways to connect without sending a dump first.
+
+#### User Story
+> "I want to share my connection code at a party, in a group chat, or on social media so friends can connect with me directly - before I even send them anything."
+
+#### Connection Methods
+
+1. **Personal QR Code**
+   - Each user gets a unique QR code in their profile/settings
+   - Scannable with phone camera or in-app scanner
+   - Scanning opens app (if installed) or web page with app download + connection code
+   - Format: `hitpost.vercel.app/connect/{user_code}`
+
+2. **Personal Connection Code**
+   - 6-character alphanumeric code (similar to claim codes)
+   - Displayed prominently in profile: "My code: MONICA7"
+   - Shareable in group chats: "Download HitPost and add me: MONICA7"
+   - Can be customized? (e.g., choose your own word)
+
+3. **Connection Flow**
+   - New user downloads app
+   - Goes to "Add Friend" or "Connect"
+   - Enters code or scans QR
+   - Creates mini-profile (required for connection):
+     - First name + last initial (e.g., "Monica H")
+     - OR "How do you know [person]?" context (e.g., "work", "college", "family")
+   - Connection request sent → auto-accepted or requires approval?
+
+#### Mini-Profile for New Connections
+
+When connecting directly (not via dump), the connector needs to identify themselves:
+
+```
+┌─────────────────────────────────────┐
+│  Connecting to Monica's HitPost     │
+│                                     │
+│  What should Monica call you?       │
+│  ┌─────────────────────────────┐   │
+│  │ Sarah K                     │   │
+│  └─────────────────────────────┘   │
+│                                     │
+│  How do you know Monica?            │
+│  ○ Friend  ○ Family  ○ Work        │
+│  ○ School  ○ Internet ○ Other      │
+│                                     │
+│         [ Connect ]                 │
+└─────────────────────────────────────┘
+```
+
+#### Contact List / Connections Management
+
+New screen: **Connections** or **Friends**
+
+- See all people you've connected with (sent to or received from)
+- Status indicators:
+  - 🟢 **Connected** - Has app, receives pushes
+  - 🟡 **Pending** - Sent dump, hasn't claimed yet
+  - ⚪ **Invited** - Shared code/link, hasn't downloaded
+- Ability to:
+  - View connection history (dumps sent/received)
+  - Remove connection
+  - Re-send invite to pending connections
+
+#### Invite Analytics
+
+Track conversion funnel:
+
+```
+Invites Dashboard
+─────────────────────────────────────
+Total invites sent:     47
+App downloads:          23  (49%)
+Codes claimed:          18  (38%)
+Active connections:     15  (32%)
+
+Recent Activity:
+• Sarah K connected (2 hours ago)
+• Mom viewed your dump (yesterday)
+• "Dave" hasn't claimed yet - resend?
+```
+
+Metrics to track:
+- Links shared → opened
+- App downloads from invites
+- Claim codes used vs generated
+- Time from invite to claim
+- Repeat engagement after first dump
+
+#### Implementation Considerations
+
+1. **Personal codes vs claim codes**
+   - Personal code: permanent, identifies the user
+   - Claim code: temporary, identifies a specific dump recipient slot
+   - Could merge: personal code creates a "pending connection" that any future dump auto-links to?
+
+2. **Privacy / Spam prevention**
+   - Should connections require approval?
+   - Rate limit connection requests?
+   - Block/report functionality?
+
+3. **Database changes**
+   - `users.personal_code` - unique shareable code
+   - `connections` table - user_id, connected_user_id, status, context, created_at
+   - `invites` table - tracking shared links/codes before claim
+
+4. **QR Code generation**
+   - Generate client-side or server-side?
+   - Include branding/styling
+   - Support for saving/sharing as image
+
+---
+
+### Other Future Ideas
+
+- [ ] SMS/email automation for invites
+- [ ] Save memes from received dumps to own library
+- [ ] Public profiles / discover users
+- [ ] Meme templates / editing tools
+- [ ] Scheduled dumps ("Send at 9am tomorrow")
+- [ ] Dump expiration ("View within 24 hours")
+- [ ] Read receipts per meme in slideshow

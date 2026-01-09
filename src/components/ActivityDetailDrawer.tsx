@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import FunLoader from "@/components/FunLoader";
 
 interface DumpDetail {
   id: string;
@@ -23,17 +24,33 @@ interface ActivityDetailDrawerProps {
 export default function ActivityDetailDrawer({ dumpId, onClose }: ActivityDetailDrawerProps) {
   const [dump, setDump] = useState<DumpDetail | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
+
+  async function fetchDumpDetails() {
+    if (!dumpId) return;
+    setLoading(true);
+    setError(false);
+    try {
+      const res = await fetch(`/api/dumps/${dumpId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setDump(data.dump);
+      } else {
+        setError(true);
+      }
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
     if (dumpId) {
-      setLoading(true);
-      fetch(`/api/dumps/${dumpId}`)
-        .then((res) => res.json())
-        .then((data) => setDump(data.dump))
-        .catch(console.error)
-        .finally(() => setLoading(false));
+      fetchDumpDetails();
     } else {
       setDump(null);
+      setError(false);
     }
   }, [dumpId]);
 
@@ -60,21 +77,28 @@ export default function ActivityDetailDrawer({ dumpId, onClose }: ActivityDetail
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
+        aria-hidden="true"
       />
 
       {/* Drawer on mobile, Modal on desktop */}
-      <div className="absolute bottom-0 left-0 right-0 sm:bottom-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:max-w-lg sm:w-full sm:mx-4 bg-white dark:bg-gray-900 rounded-t-3xl sm:rounded-3xl max-h-[85vh] overflow-hidden animate-slideUp sm:animate-scaleIn">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="dump-detail-title"
+        className="absolute bottom-0 left-0 right-0 sm:bottom-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:max-w-lg sm:w-full sm:mx-4 bg-white dark:bg-gray-900 rounded-t-3xl sm:rounded-3xl max-h-[85vh] overflow-hidden animate-slideUp sm:animate-scaleIn"
+      >
         {/* Handle */}
         <div className="flex justify-center pt-3 pb-2">
-          <div className="w-10 h-1 bg-gray-300 dark:bg-gray-700 rounded-full" />
+          <div className="w-10 h-1 bg-gray-300 dark:bg-gray-700 rounded-full" aria-hidden="true" />
         </div>
 
         {/* Header */}
         <div className="flex items-center justify-between px-4 pb-3 border-b border-gray-100 dark:border-gray-800">
-          <h2 className="font-semibold text-lg">Dump Details</h2>
+          <h2 id="dump-detail-title" className="font-semibold text-lg">Dump Details</h2>
           <button
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600"
+            aria-label="Close dump details"
+            className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -83,10 +107,21 @@ export default function ActivityDetailDrawer({ dumpId, onClose }: ActivityDetail
         </div>
 
         {/* Content */}
-        <div className="overflow-y-auto p-4 space-y-4" style={{ maxHeight: "calc(85vh - 80px)" }}>
+        <div className="overflow-y-auto p-4 pb-safe space-y-4 max-h-[calc(85vh-80px)]">
           {loading ? (
             <div className="flex justify-center py-12">
-              <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+              <FunLoader />
+            </div>
+          ) : error ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <div className="text-4xl mb-3">😵</div>
+              <p className="text-gray-500 mb-4">Failed to load dump details</p>
+              <button
+                onClick={fetchDumpDetails}
+                className="px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-full font-medium min-h-[44px] transition-colors"
+              >
+                Try Again
+              </button>
             </div>
           ) : dump ? (
             <>
@@ -124,9 +159,9 @@ export default function ActivityDetailDrawer({ dumpId, onClose }: ActivityDetail
                   {dump.memes.slice(0, 8).map((meme) => (
                     <div key={meme.id} className="aspect-square bg-gray-100 dark:bg-gray-800">
                       {meme.file_type === "video" ? (
-                        <video src={meme.file_url} className="w-full h-full object-cover" muted />
+                        <video src={meme.file_url} className="w-full h-full object-cover" muted playsInline aria-label="Video meme" />
                       ) : (
-                        <img src={meme.file_url} alt="" className="w-full h-full object-cover" />
+                        <img src={meme.file_url} alt="Meme preview" className="w-full h-full object-cover" />
                       )}
                     </div>
                   ))}

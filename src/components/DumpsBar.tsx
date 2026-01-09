@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, forwardRef, useImperativeHandle } from "react";
+import { useState, useEffect, forwardRef, useImperativeHandle, useRef } from "react";
 
 interface DumpItem {
   id: string;
@@ -28,6 +28,23 @@ const DumpsBar = forwardRef<DumpsBarRef, DumpsBarProps>(function DumpsBar(
 ) {
   const [dumps, setDumps] = useState<DumpItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Check scroll position for gradient indicators
+  function updateScrollIndicators() {
+    if (!scrollRef.current) return;
+    const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
+    setCanScrollLeft(scrollLeft > 10);
+    setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10);
+  }
+
+  useEffect(() => {
+    updateScrollIndicators();
+    window.addEventListener('resize', updateScrollIndicators);
+    return () => window.removeEventListener('resize', updateScrollIndicators);
+  }, [dumps]);
 
   async function fetchDumps() {
     try {
@@ -100,15 +117,32 @@ const DumpsBar = forwardRef<DumpsBarRef, DumpsBarProps>(function DumpsBar(
           <div className="flex-1 h-px bg-white/10" />
         </div>
 
-        <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
-          {/* New Dump Button */}
-          <button
-            onClick={handleCreateClick}
-            className="flex-shrink-0 w-24 h-28 rounded-xl bg-white/10 border-2 border-dashed border-white/20 flex flex-col items-center justify-center text-white/60 transition-all active:scale-95"
+        <div className="relative">
+          {/* Left scroll indicator */}
+          {canScrollLeft && (
+            <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-black/90 to-transparent z-10 pointer-events-none" />
+          )}
+          {/* Right scroll indicator */}
+          {canScrollRight && (
+            <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-black/90 to-transparent z-10 pointer-events-none" />
+          )}
+
+          <div
+            ref={scrollRef}
+            onScroll={updateScrollIndicators}
+            className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide"
+            role="list"
+            aria-label="Your dumps"
           >
-            <span className="text-3xl mb-1">+</span>
-            <span className="text-xs font-medium">New Dump</span>
-          </button>
+            {/* New Dump Button */}
+            <button
+              onClick={handleCreateClick}
+              aria-label="Create new dump"
+              className="flex-shrink-0 w-24 h-28 rounded-xl bg-white/10 border-2 border-dashed border-white/20 flex flex-col items-center justify-center text-white/60 transition-all active:scale-95 min-h-[112px]"
+            >
+              <span className="text-3xl mb-1">+</span>
+              <span className="text-xs font-medium">New Dump</span>
+            </button>
 
           {/* Loading state */}
           {loading && (
@@ -120,7 +154,9 @@ const DumpsBar = forwardRef<DumpsBarRef, DumpsBarProps>(function DumpsBar(
             <button
               key={dump.id}
               onClick={() => handleDumpClick(dump.id)}
-              className={`flex-shrink-0 w-24 rounded-xl overflow-hidden bg-white/5 transition-all ${
+              aria-label={`Draft: ${dump.note || 'Untitled'}, ${dump.meme_count} memes`}
+              role="listitem"
+              className={`flex-shrink-0 w-24 rounded-xl overflow-hidden bg-white/5 transition-all min-h-[112px] ${
                 selectedDumpId === dump.id
                   ? "ring-2 ring-amber-500 scale-105"
                   : "active:scale-95"
@@ -150,7 +186,9 @@ const DumpsBar = forwardRef<DumpsBarRef, DumpsBarProps>(function DumpsBar(
             <button
               key={dump.id}
               onClick={() => handleDumpClick(dump.id)}
-              className={`flex-shrink-0 w-24 rounded-xl overflow-hidden bg-white/5 transition-all ${
+              aria-label={`Sent: ${dump.note || 'Untitled'}, ${dump.recipient_count} recipients`}
+              role="listitem"
+              className={`flex-shrink-0 w-24 rounded-xl overflow-hidden bg-white/5 transition-all min-h-[112px] ${
                 selectedDumpId === dump.id
                   ? "ring-2 ring-green-500 scale-105"
                   : "active:scale-95 opacity-70"
@@ -181,6 +219,7 @@ const DumpsBar = forwardRef<DumpsBarRef, DumpsBarProps>(function DumpsBar(
               Tap + to create a dump
             </div>
           )}
+          </div>
         </div>
       </div>
     </div>
