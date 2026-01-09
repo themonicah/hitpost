@@ -64,7 +64,7 @@ Benefits:
 - Grid of all uploaded memes
 - Multi-select to create dumps
 - Filter: All / Used / Unused
-- Upload via camera roll or camera
+- Upload via camera roll
 
 ### Dumps
 - **Drafts section:** Collections in progress

@@ -125,13 +125,11 @@ Create a personal-use tool that **just works** - a snappy, reliable app that mak
 | ID | Requirement |
 |----|-------------|
 | FR-2.1 | The system must allow users to upload images and videos from their device camera roll. |
-| FR-2.2 | The system must allow users to capture new photos/videos directly within the app. |
-| FR-2.3 | The system must display all uploaded memes in a scrollable grid view. |
-| FR-2.4 | The system must support filtering memes by: All, Used (sent in a dump), Unused (never sent). |
-| FR-2.5 | The system must allow deletion of memes from the library. |
-| FR-2.6 | The system must automatically compress images larger than 2MB to optimize storage and transmission. |
-| FR-2.7 | The system must automatically compress videos to a maximum of 720p resolution. |
-| FR-2.8 | The system must detect duplicate memes (same file hash) and prompt the user before uploading ("This meme already exists in your library. Upload anyway?"). |
+| FR-2.2 | The system must display all uploaded memes in a scrollable grid view. |
+| FR-2.3 | The system must support filtering memes by: All, Used (sent in a dump), Unused (never sent). |
+| FR-2.4 | The system must allow deletion of memes from the library. |
+| FR-2.5 | The system must automatically compress images larger than 2MB to optimize storage and transmission. |
+| FR-2.6 | The system must automatically compress videos to a maximum of 720p resolution. |
 
 ### 4.3 Dump Creation
 
@@ -490,7 +488,6 @@ Sender creates new dump
 ### Unit Tests
 - Claim code generation (format validation, uniqueness)
 - Media compression logic
-- Duplicate detection algorithm
 - Push notification payload construction
 
 ### Integration Tests
