@@ -30,6 +30,7 @@ export default function HomeContent({ userId }: HomeContentProps) {
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const [showAddToDump, setShowAddToDump] = useState(false);
   const [memeToAdd, setMemeToAdd] = useState<Meme | null>(null);
+  const [selectedDumpId, setSelectedDumpId] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -177,10 +178,18 @@ export default function HomeContent({ userId }: HomeContentProps) {
         className="hidden"
       />
 
-      {/* Draft Dumps Section */}
-      {draftDumps.length > 0 && (
-        <DraftDumps drafts={draftDumps} />
-      )}
+      {/* Dumps Section */}
+      <DraftDumps
+        drafts={draftDumps}
+        onDumpClick={(dumpId) => {
+          setSelectedDumpId(dumpId);
+          setShowAddToDump(true);
+        }}
+        onNewDump={() => {
+          setSelectedDumpId(null);
+          setShowAddToDump(true);
+        }}
+      />
 
       {/* Meme Grid */}
       <MemeGrid
@@ -225,10 +234,15 @@ export default function HomeContent({ userId }: HomeContentProps) {
         onClose={() => {
           setShowAddToDump(false);
           setMemeToAdd(null);
+          setSelectedDumpId(null);
+          fetchMemes(); // Refresh dumps list
         }}
         selectedMemes={memeToAdd ? [memeToAdd] : []}
+        preselectedDumpId={selectedDumpId}
         onComplete={() => {
           setMemeToAdd(null);
+          setSelectedDumpId(null);
+          fetchMemes(); // Refresh dumps list
         }}
       />
     </div>

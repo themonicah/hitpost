@@ -1,7 +1,6 @@
 "use client";
 
 import { Meme } from "@/lib/db";
-import { useRouter } from "next/navigation";
 
 interface DraftDump {
   id: string;
@@ -14,18 +13,19 @@ interface DraftDump {
 
 interface DraftDumpsProps {
   drafts: DraftDump[];
-  onNewDump?: () => void;
+  onDumpClick: (dumpId: string) => void;
+  onNewDump: () => void;
 }
 
-// 3x3 grid preview component
-function GridPreview({ memes }: { memes: Meme[] }) {
+// Small 3x3 grid preview - very compact
+function MiniGrid({ memes }: { memes: Meme[] }) {
   return (
-    <div className="w-full aspect-square rounded-xl overflow-hidden bg-gray-100">
+    <div className="w-24 h-24 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
       <div className="grid grid-cols-3 grid-rows-3 gap-px h-full w-full">
         {[...Array(9)].map((_, i) => {
           const meme = memes[i];
           return (
-            <div key={i} className="bg-gray-200 relative overflow-hidden">
+            <div key={i} className="bg-gray-200 overflow-hidden">
               {meme ? (
                 meme.file_type === "video" ? (
                   <video
@@ -52,74 +52,63 @@ function GridPreview({ memes }: { memes: Meme[] }) {
   );
 }
 
-export default function DraftDumps({ drafts, onNewDump }: DraftDumpsProps) {
-  const router = useRouter();
-
-  if (drafts.length === 0 && !onNewDump) return null;
-
+export default function DraftDumps({ drafts, onDumpClick, onNewDump }: DraftDumpsProps) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-gray-900">Dumps</h2>
-        {onNewDump && (
-          <button
-            onClick={onNewDump}
-            className="text-blue-500 text-sm font-medium"
-          >
-            New
-          </button>
-        )}
+        <button
+          onClick={onNewDump}
+          className="text-blue-500 text-sm font-medium"
+        >
+          New
+        </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="space-y-2">
+        {/* Existing dumps - horizontal cards like iOS */}
         {drafts.map((draft) => (
           <button
             key={draft.id}
-            onClick={() => router.push(`/dumps/${draft.id}`)}
-            className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all active:scale-[0.98] text-left"
+            onClick={() => onDumpClick(draft.id)}
+            className="w-full flex items-center gap-4 bg-white rounded-2xl p-3 shadow-sm hover:shadow-md transition-all active:scale-[0.99] text-left"
           >
-            {/* Grid preview */}
-            <div className="p-2">
-              <GridPreview memes={draft.memes} />
+            {/* Mini grid preview */}
+            <MiniGrid memes={draft.memes} />
+
+            {/* Info */}
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-gray-900 truncate text-lg">
+                {draft.name || "Untitled"}
+              </p>
+              <p className="text-gray-500">
+                {draft.memeCount}
+              </p>
             </div>
 
-            {/* Info section */}
-            <div className="px-3 pb-3 flex items-start justify-between">
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-gray-900 truncate">
-                  {draft.name || "Untitled"}
-                </p>
-                <p className="text-sm text-gray-500">
-                  {draft.memeCount}
-                </p>
-              </div>
-              <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0 ml-2">
-                <span className="text-sm">💩</span>
-              </div>
+            {/* Poop avatar */}
+            <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
+              <span className="text-xl">💩</span>
             </div>
           </button>
         ))}
 
-        {/* New dump card - only show if there's at least one draft or onNewDump provided */}
-        {onNewDump && (
+        {/* New dump card - if no drafts exist */}
+        {drafts.length === 0 && (
           <button
             onClick={onNewDump}
-            className="bg-gray-50 rounded-2xl overflow-hidden border-2 border-dashed border-gray-200 hover:border-blue-400 transition-colors active:scale-[0.98]"
+            className="w-full flex items-center gap-4 bg-gray-50 rounded-2xl p-3 border-2 border-dashed border-gray-200 hover:border-blue-400 transition-colors"
           >
-            <div className="p-2">
-              <div className="w-full aspect-square rounded-xl bg-gray-100 flex flex-col items-center justify-center">
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-2">
-                  <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                </div>
-                <p className="text-sm font-medium text-gray-500">New Dump</p>
+            <div className="w-24 h-24 rounded-xl bg-gray-100 flex items-center justify-center">
+              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
               </div>
             </div>
-            <div className="px-3 pb-3">
-              <p className="text-xs text-gray-400">
-                Start fresh
-              </p>
+            <div className="flex-1">
+              <p className="font-semibold text-gray-600">Create a Dump</p>
+              <p className="text-sm text-gray-400">Start collecting memes</p>
             </div>
           </button>
         )}

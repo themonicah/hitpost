@@ -26,6 +26,7 @@ interface AddToDumpModalProps {
   isOpen: boolean;
   onClose: () => void;
   selectedMemes: Meme[];
+  preselectedDumpId?: string | null;
   onComplete?: () => void;
 }
 
@@ -35,6 +36,7 @@ export default function AddToDumpModal({
   isOpen,
   onClose,
   selectedMemes,
+  preselectedDumpId,
   onComplete,
 }: AddToDumpModalProps) {
   const router = useRouter();
@@ -65,14 +67,23 @@ export default function AddToDumpModal({
         fetch("/api/connections").then(r => r.json()),
       ])
         .then(([dumpsData, groupsData, connectionsData]) => {
-          setDrafts(dumpsData.dumps?.filter((d: Dump) => d.is_draft) || []);
+          const allDrafts = dumpsData.dumps?.filter((d: Dump) => d.is_draft) || [];
+          setDrafts(allDrafts);
           setGroups(groupsData.groups || []);
           setConnections(connectionsData.connections || []);
+
+          // Preselect dump if ID provided
+          if (preselectedDumpId) {
+            const dump = allDrafts.find((d: Dump) => d.id === preselectedDumpId);
+            if (dump) {
+              setSelectedDump(dump);
+            }
+          }
         })
         .catch(console.error)
         .finally(() => setLoading(false));
     }
-  }, [isOpen]);
+  }, [isOpen, preselectedDumpId]);
 
   // Reset state when modal closes
   useEffect(() => {
