@@ -1,0 +1,71 @@
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Confetti background -->
+  <rect x="30" y="40" width="8" height="4" rx="2" fill="#FFD93D" transform="rotate(-20 34 42)"/>
+  <rect x="60" y="25" width="6" height="3" rx="1.5" fill="#FF6B6B" transform="rotate(15 63 26)"/>
+  <rect x="150" y="35" width="7" height="3.5" rx="1.75" fill="#6C9FFF" transform="rotate(-30 153 36)"/>
+  <rect x="170" y="70" width="6" height="3" rx="1.5" fill="#6BCB77" transform="rotate(25 173 71)"/>
+  <rect x="25" y="100" width="5" height="2.5" rx="1.25" fill="#B794F6" transform="rotate(-15 27 101)"/>
+  <rect x="165" y="130" width="8" height="4" rx="2" fill="#FFD93D" transform="rotate(10 169 132)"/>
+  <rect x="40" y="150" width="6" height="3" rx="1.5" fill="#6C9FFF" transform="rotate(-25 43 151)"/>
+  <rect x="155" y="160" width="5" height="2.5" rx="1.25" fill="#FF6B6B" transform="rotate(20 157 161)"/>
+
+  <!-- Sparkles -->
+  <path d="M45 60L47 65L52 67L47 69L45 74L43 69L38 67L43 65L45 60Z" fill="#FFD93D"/>
+  <path d="M160 55L161 58L164 59L161 60L160 63L159 60L156 59L159 58L160 55Z" fill="#6BCB77"/>
+  <path d="M35 130L36 132L38 133L36 134L35 136L34 134L32 133L34 132L35 130Z" fill="#FF6B6B"/>
+  <path d="M170" y="100L171 102L173 103L171 104L170 106L169 104L167 103L169 102L170 100Z" fill="#B794F6"/>
+
+  <!-- Celebration circles -->
+  <circle cx="50" cy="45" r="4" fill="#6BCB77" opacity="0.5"/>
+  <circle cx="155" cy="50" r="3" fill="#B794F6" opacity="0.5"/>
+  <circle cx="30" cy="85" r="5" fill="#FFD93D" opacity="0.4"/>
+  <circle cx="175" cy="90" r="4" fill="#6C9FFF" opacity="0.4"/>
+
+  <!-- Main happy box character -->
+  <g transform="translate(50, 45)">
+    <!-- Box body -->
+    <rect x="10" y="35" width="80" height="60" rx="10" fill="#6BCB77"/>
+    <rect x="10" y="35" width="80" height="60" rx="10" fill="url(#successGradient)" opacity="0.25"/>
+
+    <!-- Box flaps (open celebrating) -->
+    <path d="M10 35L50 15L90 35" fill="#5AB869"/>
+
+    <!-- Arms up celebrating -->
+    <rect x="-8" y="45" width="20" height="8" rx="4" fill="#6BCB77" transform="rotate(-45 2 49)"/>
+    <rect x="88" y="45" width="20" height="8" rx="4" fill="#6BCB77" transform="rotate(45 98 49)"/>
+
+    <!-- Happy face -->
+    <circle cx="32" cy="58" r="7" fill="#374151"/>
+    <circle cx="68" cy="58" r="7" fill="#374151"/>
+    <circle cx="34" cy="56" r="2.5" fill="white"/>
+    <circle cx="70" cy="56" r="2.5" fill="white"/>
+
+    <!-- Big smile -->
+    <path d="M35 75Q50 90 65 75" stroke="#374151" stroke-width="3" fill="none" stroke-linecap="round"/>
+
+    <!-- Rosy cheeks -->
+    <ellipse cx="22" cy="68" rx="6" ry="4" fill="#FFAB76" opacity="0.5"/>
+    <ellipse cx="78" cy="68" rx="6" ry="4" fill="#FFAB76" opacity="0.5"/>
+  </g>
+
+  <!-- Paper airplane flying away -->
+  <g transform="translate(140, 110) rotate(-30)">
+    <path d="M0 10L25 0L5 10L25 20L0 10Z" fill="#6C9FFF"/>
+    <path d="M5 10L25 0L25 20L5 10Z" fill="#5A8FEE"/>
+  </g>
+
+  <!-- Motion lines -->
+  <path d="M145 125L155 120" stroke="#9CA3AF" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+  <path d="M150 130L158 127" stroke="#9CA3AF" stroke-width="1.5" stroke-linecap="round" opacity="0.4"/>
+
+  <!-- Checkmark badge -->
+  <circle cx="155" cy="75" r="15" fill="#6BCB77"/>
+  <path d="M148 75L153 80L163 70" stroke="white" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <defs>
+    <linearGradient id="successGradient" x1="10" y1="35" x2="90" y2="95">
+      <stop offset="0%" stop-color="white"/>
+      <stop offset="100%" stop-color="transparent"/>
+    </linearGradient>
+  </defs>
+</svg>

@@ -1,0 +1,32 @@
+<svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Fire mascot - for "heat" / viral content -->
+
+  <!-- Outer glow -->
+  <ellipse cx="60" cy="70" rx="35" ry="40" fill="#FF6B6B" opacity="0.2"/>
+
+  <!-- Main flame body -->
+  <path d="M60 15C60 15 35 45 35 70C35 90 45 105 60 105C75 105 85 90 85 70C85 45 60 15 60 15Z" fill="#FF6B6B"/>
+
+  <!-- Inner flame -->
+  <path d="M60 35C60 35 45 55 45 72C45 85 52 95 60 95C68 95 75 85 75 72C75 55 60 35 60 35Z" fill="#FFAB76"/>
+
+  <!-- Core flame -->
+  <path d="M60 50C60 50 52 62 52 74C52 82 55 88 60 88C65 88 68 82 68 74C68 62 60 50 60 50Z" fill="#FFD93D"/>
+
+  <!-- Face -->
+  <!-- Eyes -->
+  <ellipse cx="52" cy="70" rx="5" ry="6" fill="#374151"/>
+  <ellipse cx="68" cy="70" rx="5" ry="6" fill="#374151"/>
+
+  <!-- Eye highlights -->
+  <circle cx="53" cy="68" r="2" fill="white"/>
+  <circle cx="69" cy="68" r="2" fill="white"/>
+
+  <!-- Cool smile -->
+  <path d="M52 82Q60 88 68 82" stroke="#374151" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+
+  <!-- Sparkles around -->
+  <path d="M25 50L27 54L31 55L27 56L25 60L23 56L19 55L23 54L25 50Z" fill="#FFD93D" opacity="0.8"/>
+  <path d="M95 55L96 58L99 59L96 60L95 63L94 60L91 59L94 58L95 55Z" fill="#FF6B6B" opacity="0.7"/>
+  <path d="M40 20L41 23L44 24L41 25L40 28L39 25L36 24L39 23L40 20Z" fill="#FFAB76" opacity="0.8"/>
+</svg>

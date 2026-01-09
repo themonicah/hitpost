@@ -136,7 +136,7 @@ export default function ViewDumpContent({
           <button
             onClick={() => setView("slideshow")}
             aria-label={`View ${memes.length} memes from ${senderName}`}
-            className="w-full max-w-xs py-4 bg-gradient-to-r from-amber-400 to-orange-500 text-black font-bold text-lg rounded-2xl shadow-lg active:scale-95 transition-transform min-h-[56px]"
+            className="w-full max-w-xs py-4 bg-sunny hover:bg-sunny-dark text-gray-900 font-bold text-lg rounded-2xl shadow-lg shadow-sunny/30 active:scale-95 transition-all min-h-[56px]"
           >
             See Memes
           </button>

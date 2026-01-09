@@ -60,7 +60,7 @@ export default function ClaimCodeButton() {
       <button
         onClick={() => setIsOpen(true)}
         aria-label="Enter claim code to receive a dump"
-        className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-2xl shadow-sm hover:shadow-md transition-all min-h-[72px]"
+        className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-lavender to-coral text-white rounded-2xl shadow-md hover:shadow-lg transition-all min-h-[72px]"
       >
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
@@ -160,7 +160,7 @@ export default function ClaimCodeButton() {
                 <button
                   onClick={handleClaim}
                   disabled={loading || !code.trim()}
-                  className="w-full mt-4 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed min-h-[48px]"
+                  className="w-full mt-4 py-3 bg-sunny hover:bg-sunny-dark text-gray-900 font-semibold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-500 min-h-[48px] transition-colors"
                 >
                   {loading ? "Claiming..." : "Claim Dump"}
                 </button>

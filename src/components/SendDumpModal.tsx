@@ -266,7 +266,7 @@ export default function SendDumpModal({
           <button
             onClick={handleSend}
             disabled={sending || recipientCount === 0}
-            className="text-blue-500 font-semibold disabled:opacity-50"
+            className="px-4 py-1.5 bg-sunny hover:bg-sunny-dark text-gray-900 font-semibold rounded-full disabled:opacity-50 disabled:bg-gray-200 disabled:text-gray-400 transition-colors"
           >
             {sending ? sendingMsg : "Send"}
           </button>

@@ -1,0 +1,41 @@
+<svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Main box mascot - friendly default state -->
+  <g transform="translate(15, 15)">
+    <!-- Box body -->
+    <rect x="5" y="30" width="80" height="55" rx="8" fill="#FFD93D"/>
+    <rect x="5" y="30" width="80" height="55" rx="8" fill="url(#mascotGradient)" opacity="0.2"/>
+
+    <!-- Box flaps -->
+    <path d="M5 30L45 12L85 30" fill="#E8C235"/>
+
+    <!-- Left flap detail -->
+    <path d="M5 30Q25 18 45 22" fill="#FFE066" opacity="0.5"/>
+    <!-- Right flap detail -->
+    <path d="M85 30Q65 18 45 22" fill="#FFE066" opacity="0.5"/>
+
+    <!-- Happy eyes -->
+    <circle cx="28" cy="52" r="8" fill="#374151"/>
+    <circle cx="62" cy="52" r="8" fill="#374151"/>
+
+    <!-- Eye highlights -->
+    <circle cx="30" cy="50" r="3" fill="white"/>
+    <circle cx="64" cy="50" r="3" fill="white"/>
+
+    <!-- Friendly smile -->
+    <path d="M32 70Q45 80 58 70" stroke="#374151" stroke-width="3" fill="none" stroke-linecap="round"/>
+
+    <!-- Blush -->
+    <ellipse cx="18" cy="62" rx="6" ry="3" fill="#FFAB76" opacity="0.6"/>
+    <ellipse cx="72" cy="62" rx="6" ry="3" fill="#FFAB76" opacity="0.6"/>
+  </g>
+
+  <!-- Small decorative sparkle -->
+  <path d="M95 25L97 30L102 32L97 34L95 39L93 34L88 32L93 30L95 25Z" fill="#FFD93D" opacity="0.7"/>
+
+  <defs>
+    <linearGradient id="mascotGradient" x1="5" y1="30" x2="85" y2="85">
+      <stop offset="0%" stop-color="white"/>
+      <stop offset="100%" stop-color="transparent"/>
+    </linearGradient>
+  </defs>
+</svg>
