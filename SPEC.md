@@ -263,3 +263,84 @@ Example invite text:
 > Hey, I sent you a meme dump on HitPost! View it here: [link]
 >
 > Want to get more dumps? Install HitPost and enter code: VIBE42
+
+---
+
+## Current Implementation Status
+
+### Completed (January 2025)
+
+1. **Device-based Auth** - Users auto-login on first visit with device ID stored in localStorage
+   - No email required to start
+   - Session created automatically via `/api/auth/device`
+   - `AutoLogin` component handles seamless onboarding
+
+2. **Name-based Recipients** - Senders enter names, not emails
+   - `DumpRecipient.name` field added
+   - Claim codes generated per recipient
+
+3. **Claim Code System** - Implemented and tested
+   - Format: WORD + 2 digits (e.g., VIBE42)
+   - `/api/claim` endpoint links claim code to user
+   - Case-insensitive matching
+
+4. **Database Migrations** - All new columns added
+   - `users.device_id` for device auth
+   - `users.email` now nullable
+   - `dump_recipients.name`, `claim_code`, `claimed_at`
+
+### In Progress
+
+1. **Testing Flows**
+   - Sender flow: Create dump → Add recipients → Send → Get claim codes
+   - Receiver flow: Open link → View → Install app → Enter code → See in Activity
+
+2. **UI Polish**
+   - Claim code display on web view
+   - "Got a code?" button in Activity tab
+
+### Next Steps
+
+1. **Test end-to-end flows**
+   - Manually test sender creating dump with recipients
+   - Test receiver claiming with code
+   - Verify dump appears in Activity
+
+2. **Add email backup option**
+   - Settings page with "Add email for backup"
+   - Link device users to email for recovery
+
+3. **Push notifications** (deferred)
+   - Notify when someone views your dump
+   - Notify when you receive a dump
+
+---
+
+## Technical Notes
+
+### Important Files
+
+| File | Purpose |
+|------|---------|
+| `src/lib/db.ts` | Database operations, includes `generateClaimCode()` |
+| `src/lib/auth.ts` | Session management, `createSessionFromDeviceId()` |
+| `src/components/AutoLogin.tsx` | Auto-login component for new users |
+| `src/app/api/auth/device/route.ts` | Device auth endpoint |
+| `src/app/api/claim/route.ts` | Claim code validation endpoint |
+| `src/app/api/dumps/route.ts` | Create dump with recipients |
+| `src/app/api/dumps/[dumpId]/send/route.ts` | Send draft dump to recipients |
+| `src/app/api/dev/migrate/route.ts` | Database migrations |
+
+### Environment
+
+- **Production URL:** https://hitpost.vercel.app
+- **Database:** Vercel Postgres
+- **Build:** `npm run build` (Next.js 16 + Turbopack)
+- **Dev:** `npm run dev`
+
+### Key Design Decisions
+
+1. **Device ID over Email** - Reduces friction, email becomes optional backup
+2. **Names not Emails** - Senders share via messaging apps where they have phone numbers, not emails
+3. **Claim Codes over Deep Links** - App Store install breaks deep link context; codes are reliable
+4. **Web Viewer First** - Non-app users can view dumps, then convert to app users
