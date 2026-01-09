@@ -48,6 +48,7 @@ export default function NewDumpPage() {
   const [newRecipientName, setNewRecipientName] = useState("");
   const [addingRecipient, setAddingRecipient] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
+  const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
 
   // Auto-open file picker on mount
   useEffect(() => {
@@ -518,32 +519,59 @@ export default function NewDumpPage() {
                         Groups
                       </p>
                       {groups.map((group) => (
-                        <button
-                          key={group.id}
-                          onClick={() => toggleGroup(group.id)}
-                          className="w-full flex items-center justify-between py-2"
-                        >
-                          <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center">
-                              <span className="text-sm">👥</span>
-                            </div>
-                            <div className="text-left">
-                              <span className="font-medium text-sm block">{group.name}</span>
-                              <span className="text-xs text-gray-400">{group.members.length} people</span>
-                            </div>
-                          </div>
-                          <div
-                            className={`w-5 h-5 rounded-full flex items-center justify-center ${
-                              selectedGroupIds.has(group.id) ? "bg-blue-500" : "bg-gray-200"
-                            }`}
-                          >
-                            {selectedGroupIds.has(group.id) && (
-                              <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        <div key={group.id} className="mb-2">
+                          <div className="flex items-center justify-between py-2">
+                            <button
+                              onClick={() => setExpandedGroupId(expandedGroupId === group.id ? null : group.id)}
+                              className="flex items-center gap-2 flex-1"
+                            >
+                              <div className="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center">
+                                <span className="text-sm">👥</span>
+                              </div>
+                              <div className="text-left">
+                                <span className="font-medium text-sm block">{group.name}</span>
+                                <span className="text-xs text-gray-400">{group.members.length} people</span>
+                              </div>
+                              <svg
+                                className={`w-4 h-4 text-gray-400 transition-transform ${expandedGroupId === group.id ? 'rotate-180' : ''}`}
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                               </svg>
-                            )}
+                            </button>
+                            <button
+                              onClick={() => toggleGroup(group.id)}
+                              className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                                selectedGroupIds.has(group.id) ? "bg-blue-500" : "bg-gray-200"
+                              }`}
+                            >
+                              {selectedGroupIds.has(group.id) && (
+                                <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                              )}
+                            </button>
                           </div>
-                        </button>
+
+                          {/* Expanded member list */}
+                          {expandedGroupId === group.id && (
+                            <div className="ml-10 mt-1 space-y-1 pb-2">
+                              {group.members.map((member) => (
+                                <div key={member.id} className="flex items-center gap-2 py-1 text-sm text-gray-600">
+                                  <div className="w-5 h-5 bg-gray-200 rounded-full flex items-center justify-center">
+                                    <span className="text-[10px] font-medium">{member.name.charAt(0).toUpperCase()}</span>
+                                  </div>
+                                  <span>{member.name}</span>
+                                </div>
+                              ))}
+                              {group.members.length === 0 && (
+                                <p className="text-xs text-gray-400 italic">No members yet</p>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       ))}
                     </div>
                   )}
