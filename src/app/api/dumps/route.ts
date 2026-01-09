@@ -1,5 +1,6 @@
 import { getSession } from "@/lib/auth";
 import db, { generateClaimCode } from "@/lib/db";
+import { sendPushNotification as sendPush } from "@/lib/push";
 import { NextRequest, NextResponse } from "next/server";
 import { v4 as uuid } from "uuid";
 
@@ -26,14 +27,23 @@ async function sendPushNotification(
   try {
     const pushTokens = await db.getPushTokensByUser(userId);
     if (pushTokens.length === 0) {
+      console.log(`No push tokens for user ${userId}`);
       return false;
     }
-    // Log for now - TODO: integrate with APNs/FCM
-    for (const pushToken of pushTokens) {
-      console.log(`PUSH [${pushToken.platform}]: ${title} - ${body}`);
+
+    const tokens = pushTokens.map((t) => t.token);
+
+    // Check if Firebase is configured
+    if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
+      console.log(`PUSH (Firebase not configured): ${title} - ${body}`);
+      return false;
     }
-    return true;
-  } catch {
+
+    const result = await sendPush(tokens, { title, body, data });
+    console.log(`PUSH sent: ${result.successCount} success, ${result.failureCount} failed`);
+    return result.successCount > 0;
+  } catch (error) {
+    console.error("Push notification error:", error);
     return false;
   }
 }
