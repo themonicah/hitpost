@@ -213,26 +213,23 @@ export default function ViewDumpContent({
     );
   }
 
-  // SLIDESHOW VIEW - Clean white
+  // SLIDESHOW VIEW - Dark background for better meme visibility
   if (view === "slideshow") {
     return (
-      <div className="min-h-screen bg-white flex flex-col">
+      <div className="min-h-screen flex flex-col" style={{ backgroundColor: "rgba(0, 0, 0, 0.9)" }}>
         <ConnectModal />
 
         {/* Header */}
         <div className="flex items-center justify-between px-4 pt-14 pb-4">
           <button
             onClick={() => setView("grid")}
-            className="text-gray-500 text-sm font-medium flex items-center gap-1 min-h-[44px] px-2"
+            className="text-white/70 text-sm font-medium flex items-center gap-1 min-h-[44px] px-2 hover:text-white transition-colors"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
             </svg>
             All
           </button>
-          <span className="text-gray-400 text-sm font-medium">
-            {currentIndex + 1} / {memes.length}
-          </span>
           <div className="w-12" />
         </div>
 
@@ -243,7 +240,7 @@ export default function ViewDumpContent({
               {currentMeme.file_type === "video" ? (
                 <video
                   src={currentMeme.file_url}
-                  className="w-full rounded-2xl shadow-lg"
+                  className="w-full rounded-2xl"
                   controls
                   autoPlay
                   playsInline
@@ -252,7 +249,7 @@ export default function ViewDumpContent({
                 <img
                   src={currentMeme.file_url}
                   alt={`Meme ${currentIndex + 1}`}
-                  className="w-full rounded-2xl shadow-lg object-contain"
+                  className="w-full rounded-2xl object-contain"
                 />
               )}
             </div>
@@ -269,7 +266,7 @@ export default function ViewDumpContent({
                 className={`w-14 h-14 rounded-full flex items-center justify-center text-2xl transition-all ${
                   reactions[currentMeme.id] === emoji
                     ? "bg-sunny scale-110 shadow-md"
-                    : "bg-gray-100 hover:bg-gray-200"
+                    : "bg-white/20 hover:bg-white/30"
                 }`}
               >
                 {emoji}
@@ -283,7 +280,7 @@ export default function ViewDumpContent({
           <button
             onClick={() => setCurrentIndex((i) => Math.max(0, i - 1))}
             disabled={currentIndex === 0}
-            className="flex-1 py-3.5 bg-gray-100 text-gray-700 font-semibold rounded-xl disabled:opacity-30 min-h-[48px]"
+            className="flex-1 py-3.5 bg-white/20 text-white font-semibold rounded-xl disabled:opacity-30 min-h-[48px] transition-colors hover:bg-white/30"
           >
             Previous
           </button>
@@ -295,7 +292,7 @@ export default function ViewDumpContent({
                 setView("grid");
               }
             }}
-            className="flex-1 py-3.5 bg-gray-900 text-white font-semibold rounded-xl min-h-[48px]"
+            className="flex-1 py-3.5 bg-white text-gray-900 font-semibold rounded-xl min-h-[48px] transition-colors hover:bg-gray-100"
           >
             {currentIndex < memes.length - 1 ? "Next" : "Done"}
           </button>
