@@ -270,8 +270,8 @@ export default function HomeContent({ userId }: HomeContentProps) {
                 key={dump.id}
                 dump={dump}
                 onClick={() => {
-                  setSelectedDumpId(dump.id);
-                  setShowDumpDrawer(true);
+                  // Sent dumps go to detail page showing recipient status
+                  router.push(`/dumps/${dump.id}`);
                 }}
               />
             ))}
