@@ -127,6 +127,15 @@ export interface ActivityItem {
   senderEmail?: string;  // For received dumps
 }
 
+export interface UserConnection {
+  id: string;
+  connector_id: string;
+  name: string;
+  connected_user_id: string | null;
+  connected_at: string | null;
+  created_at: string;
+}
+
 // Database operations
 export const db = {
   // Users
@@ -880,6 +889,53 @@ export const db = {
     allActivity.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
     return allActivity.slice(0, limit);
+  },
+
+  // User Connections (QR code connections)
+  async createConnection(connection: { connector_id: string; name: string }): Promise<UserConnection> {
+    const { rows } = await sql<UserConnection>`
+      INSERT INTO user_connections (connector_id, name)
+      VALUES (${connection.connector_id}, ${connection.name})
+      RETURNING id, connector_id, name, connected_user_id, connected_at::text, created_at::text
+    `;
+    return rows[0];
+  },
+
+  async getConnectionsByConnector(connectorId: string): Promise<UserConnection[]> {
+    const { rows } = await sql<UserConnection>`
+      SELECT id, connector_id, name, connected_user_id, connected_at::text, created_at::text
+      FROM user_connections
+      WHERE connector_id = ${connectorId}
+      ORDER BY created_at DESC
+    `;
+    return rows;
+  },
+
+  async getConnectionByConnectorAndName(connectorId: string, name: string): Promise<UserConnection | undefined> {
+    const { rows } = await sql<UserConnection>`
+      SELECT id, connector_id, name, connected_user_id, connected_at::text, created_at::text
+      FROM user_connections
+      WHERE connector_id = ${connectorId} AND LOWER(name) = LOWER(${name})
+    `;
+    return rows[0];
+  },
+
+  async linkConnectionToUser(connectionId: string, userId: string): Promise<void> {
+    await sql`
+      UPDATE user_connections
+      SET connected_user_id = ${userId}, connected_at = NOW()
+      WHERE id = ${connectionId}
+    `;
+  },
+
+  async getPendingConnectionsForUser(name: string): Promise<UserConnection[]> {
+    // Find connections by name that aren't yet linked to a user
+    const { rows } = await sql<UserConnection>`
+      SELECT id, connector_id, name, connected_user_id, connected_at::text, created_at::text
+      FROM user_connections
+      WHERE LOWER(name) = LOWER(${name}) AND connected_user_id IS NULL
+    `;
+    return rows;
   },
 };
 

@@ -1,9 +1,8 @@
 import { getSession } from "@/lib/auth";
 import Image from "next/image";
-import Header from "@/components/Header";
-import HomeContent from "./HomeContent";
 import AppShell from "@/components/AppShell";
 import AutoLogin from "@/components/AutoLogin";
+import LoggedInHome from "./LoggedInHome";
 
 export const dynamic = "force-dynamic";
 
@@ -51,12 +50,7 @@ export default async function Home() {
   // Show meme library when logged in
   return (
     <AppShell>
-      <div className="min-h-screen bg-gray-50">
-        <Header email={user.email} title="Memes" />
-        <main className="max-w-4xl mx-auto px-4 py-4">
-          <HomeContent userId={user.id} />
-        </main>
-      </div>
+      <LoggedInHome userId={user.id} userEmail={user.email} />
     </AppShell>
   );
 }

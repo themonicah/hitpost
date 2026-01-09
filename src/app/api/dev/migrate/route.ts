@@ -37,6 +37,20 @@ export async function POST() {
     await sql`ALTER TABLE dump_recipients ADD COLUMN IF NOT EXISTS claimed_at TIMESTAMP`;
     await sql`CREATE INDEX IF NOT EXISTS idx_dump_recipients_claim_code ON dump_recipients(claim_code)`;
 
+    // User connections table (QR code connections)
+    await sql`
+      CREATE TABLE IF NOT EXISTS user_connections (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        connector_id UUID NOT NULL REFERENCES users(id),
+        name TEXT NOT NULL,
+        connected_user_id UUID REFERENCES users(id),
+        connected_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `;
+    await sql`CREATE INDEX IF NOT EXISTS idx_user_connections_connector_id ON user_connections(connector_id)`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_user_connections_connected_user_id ON user_connections(connected_user_id)`;
+
     return NextResponse.json({ success: true, message: "Migration complete" });
   } catch (error) {
     console.error("Migration error:", error);
