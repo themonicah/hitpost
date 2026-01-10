@@ -76,7 +76,8 @@ export default function AddToDumpModal({
   const [selectedConnectionIds, setSelectedConnectionIds] = useState<Set<string>>(new Set());
 
   // Tray navigation state
-  const [activeView, setActiveView] = useState<"main" | "recipients">("main");
+  const [activeView, setActiveView] = useState<"main" | "recipients" | "memes">("main");
+  const [expandedMemeId, setExpandedMemeId] = useState<string | null>(null);
 
   const [uploading, setUploading] = useState(false);
   const [newRecipientName, setNewRecipientName] = useState("");
@@ -139,6 +140,7 @@ export default function AddToDumpModal({
       setSelectedGroupIds(new Set());
       setSelectedConnectionIds(new Set());
       setActiveView("main");
+      setExpandedMemeId(null);
       setUploading(false);
       setNewRecipientName("");
       setError("");
@@ -443,7 +445,7 @@ export default function AddToDumpModal({
         {/* Main Tray - Dump Overview */}
         <div
           className={`absolute inset-x-0 bottom-0 ${
-            activeView === "recipients"
+            activeView !== "main"
               ? "animate-tray-push-back pointer-events-none"
               : "animate-tray-pull-forward"
           }`}
@@ -479,9 +481,16 @@ export default function AddToDumpModal({
                 </button>
               )}
 
-              <h2 className="font-semibold text-lg">
-                {isNewDump ? "New Dump" : (dumpName || "Untitled")}
-              </h2>
+              <input
+                type="text"
+                value={dumpName}
+                onChange={(e) => {
+                  setDumpName(e.target.value);
+                  setHasUnsavedChanges(true);
+                }}
+                placeholder="Untitled Dump"
+                className="font-semibold text-lg text-center bg-transparent focus:outline-none focus:bg-gray-50 rounded-lg px-2 py-1 w-40 truncate"
+              />
 
               {/* Right button: Send Now (only when ready) */}
               {canSend ? (
@@ -505,18 +514,6 @@ export default function AddToDumpModal({
                 </div>
               ) : (
                 <>
-                  {/* Name field */}
-                  <input
-                    type="text"
-                    value={dumpName}
-                    onChange={(e) => {
-                      setDumpName(e.target.value);
-                      setHasUnsavedChanges(true);
-                    }}
-                    placeholder="Name your dump..."
-                    className="w-full px-4 py-3 bg-gray-50 rounded-2xl focus:outline-none focus:ring-2 focus:ring-amber-500/50 text-lg"
-                  />
-
                   {/* Hidden file input */}
                   <input
                     ref={fileInputRef}
@@ -528,15 +525,15 @@ export default function AddToDumpModal({
                     disabled={uploading}
                   />
 
-                  {/* Memes section */}
-                  <div className="bg-gray-50 rounded-2xl p-4">
+                  {/* Memes section - tappable to open meme grid tray */}
+                  <button
+                    onClick={() => hasMemes ? setActiveView("memes") : fileInputRef.current?.click()}
+                    disabled={uploading}
+                    className="w-full bg-gray-50 rounded-2xl p-4 hover:bg-gray-100 transition-colors text-left"
+                  >
                     {hasMemes ? (
-                      <button
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={uploading}
-                        className="w-full flex flex-col items-center py-4 hover:bg-gray-100 rounded-xl transition-colors"
-                      >
-                        {/* Centered photo pile with + button integrated */}
+                      <div className="flex flex-col items-center py-4">
+                        {/* Centered photo pile */}
                         <div className="relative" style={{ width: "120px", height: "100px" }}>
                           {dumpMemes.slice(0, 3).map((meme, i) => (
                             <div
@@ -558,27 +555,14 @@ export default function AddToDumpModal({
                               )}
                             </div>
                           ))}
-                          {/* + badge on stack */}
-                          <div className="absolute -right-1 -bottom-1 w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center z-10">
-                            {uploading ? (
-                              <span className="text-white text-sm animate-spin">⏳</span>
-                            ) : (
-                              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />
-                              </svg>
-                            )}
-                          </div>
                         </div>
                         <p className="text-sm text-gray-500 mt-2">
-                          {uploading ? "Uploading..." : `${dumpMemes.length} meme${dumpMemes.length !== 1 ? "s" : ""}`}
+                          {`${dumpMemes.length} meme${dumpMemes.length !== 1 ? "s" : ""}`}
                         </p>
-                      </button>
+                        <p className="text-xs text-gray-400 mt-1">Tap to manage</p>
+                      </div>
                     ) : (
-                      <button
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={uploading}
-                        className="w-full py-12 flex flex-col items-center justify-center gap-3"
-                      >
+                      <div className="py-12 flex flex-col items-center justify-center gap-3">
                         {uploading ? (
                           <>
                             <span className="text-4xl animate-spin">⏳</span>
@@ -597,9 +581,9 @@ export default function AddToDumpModal({
                             </div>
                           </>
                         )}
-                      </button>
+                      </div>
                     )}
-                  </div>
+                  </button>
 
                   {/* Recipients section - tappable row */}
                   <button
@@ -845,6 +829,160 @@ export default function AddToDumpModal({
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+        )}
+
+        {/* Meme Grid Tray - for managing memes */}
+        {activeView === "memes" && (
+        <div
+          className="absolute inset-x-0 bottom-0 animate-tray-up"
+          style={{ zIndex: 62 }}
+        >
+          <div className="w-full max-w-lg mx-auto bg-white rounded-t-3xl max-h-[85vh] overflow-hidden flex flex-col shadow-2xl">
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+              <button
+                onClick={() => {
+                  setActiveView("main");
+                  setExpandedMemeId(null);
+                }}
+                className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+
+              <h2 className="font-semibold text-lg">
+                {dumpMemes.length} Meme{dumpMemes.length !== 1 ? "s" : ""}
+              </h2>
+
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="px-4 py-2 text-orange-500 font-semibold hover:text-orange-600"
+              >
+                {uploading ? "..." : "+ Add"}
+              </button>
+            </div>
+
+            {/* Content - Grid or Expanded View */}
+            <div className="flex-1 overflow-y-auto p-4">
+              {expandedMemeId ? (
+                // Expanded single meme view
+                <div className="flex flex-col h-full">
+                  {(() => {
+                    const meme = dumpMemes.find(m => m.id === expandedMemeId);
+                    if (!meme) return null;
+                    return (
+                      <>
+                        <div className="flex-1 flex items-center justify-center bg-black rounded-2xl overflow-hidden min-h-[300px]">
+                          {meme.file_type === "video" ? (
+                            <video
+                              src={meme.file_url}
+                              className="max-w-full max-h-[400px] object-contain"
+                              controls
+                              autoPlay
+                              muted
+                            />
+                          ) : (
+                            <img
+                              src={meme.file_url}
+                              alt=""
+                              className="max-w-full max-h-[400px] object-contain"
+                            />
+                          )}
+                        </div>
+                        <div className="flex gap-3 mt-4">
+                          <button
+                            onClick={() => setExpandedMemeId(null)}
+                            className="flex-1 py-3 bg-gray-100 text-gray-700 font-semibold rounded-xl"
+                          >
+                            Back to Grid
+                          </button>
+                          <button
+                            onClick={() => {
+                              setDumpMemes(prev => prev.filter(m => m.id !== expandedMemeId));
+                              setExpandedMemeId(null);
+                              setHasUnsavedChanges(true);
+                            }}
+                            className="flex-1 py-3 bg-red-100 text-red-600 font-semibold rounded-xl"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+              ) : (
+                // Grid view
+                <>
+                  {uploading && (
+                    <div className="flex items-center justify-center py-4 mb-4 bg-orange-50 rounded-xl">
+                      <span className="text-orange-600">Uploading...</span>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-3 gap-2">
+                    {dumpMemes.map((meme) => (
+                      <div key={meme.id} className="relative aspect-square group">
+                        <button
+                          onClick={() => setExpandedMemeId(meme.id)}
+                          className="w-full h-full rounded-xl overflow-hidden bg-gray-100"
+                        >
+                          {meme.file_type === "video" ? (
+                            <video
+                              src={meme.file_url}
+                              className="w-full h-full object-cover"
+                              muted
+                            />
+                          ) : (
+                            <img
+                              src={meme.file_url}
+                              alt=""
+                              className="w-full h-full object-cover"
+                            />
+                          )}
+                        </button>
+                        {/* Delete button - always visible on mobile */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDumpMemes(prev => prev.filter(m => m.id !== meme.id));
+                            setHasUnsavedChanges(true);
+                          }}
+                          className="absolute top-1 right-1 w-7 h-7 bg-black/70 hover:bg-black/90 rounded-full flex items-center justify-center"
+                        >
+                          <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                        {/* Video indicator */}
+                        {meme.file_type === "video" && (
+                          <div className="absolute bottom-1 left-1 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center">
+                            <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M8 5v14l11-7z" />
+                            </svg>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  {dumpMemes.length === 0 && (
+                    <div className="text-center py-12">
+                      <p className="text-gray-500">No memes yet</p>
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="mt-4 px-6 py-3 bg-orange-500 text-white font-semibold rounded-xl"
+                      >
+                        Add Memes
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           </div>
         </div>
