@@ -29,9 +29,13 @@ export async function GET(
       : [];
 
     const recipientsWithReactions = recipients.map((r) => ({
+      id: r.id,
+      name: r.name,
       email: r.email,
+      token: r.token,
       viewed_at: r.viewed_at,
       view_count: r.view_count || 0,
+      recipient_note: r.recipient_note,
       reactions: reactions.filter((rx) => rx.recipient_id === r.id).map((rx) => ({ emoji: rx.emoji })),
     }));
 

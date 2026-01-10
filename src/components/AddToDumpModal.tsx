@@ -74,7 +74,10 @@ export default function AddToDumpModal({
   const [connections, setConnections] = useState<UserConnection[]>([]);
   const [selectedGroupIds, setSelectedGroupIds] = useState<Set<string>>(new Set());
   const [selectedConnectionIds, setSelectedConnectionIds] = useState<Set<string>>(new Set());
-  const [showRecipientPicker, setShowRecipientPicker] = useState(false);
+
+  // Tray navigation state
+  const [activeView, setActiveView] = useState<"main" | "recipients">("main");
+
   const [uploading, setUploading] = useState(false);
   const [newRecipientName, setNewRecipientName] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -82,7 +85,7 @@ export default function AddToDumpModal({
   const [sentRecipients, setSentRecipients] = useState<RecipientResult[]>([]);
   const [sentDumpId, setSentDumpId] = useState<string | null>(null);
   const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [showAddRecipient, setShowAddRecipient] = useState(false);
 
   // Track if this is a new dump or existing
   const isNewDump = !preselectedDumpId;
@@ -93,6 +96,7 @@ export default function AddToDumpModal({
       setLoading(true);
       setDumpMemes(selectedMemes);
       setHasUnsavedChanges(false);
+      setActiveView("main");
 
       Promise.all([
         preselectedDumpId
@@ -108,8 +112,6 @@ export default function AddToDumpModal({
           if (dumpData?.dump) {
             setExistingDump(dumpData.dump);
             setDumpName(dumpData.dump.note || "");
-            // Merge existing dump memes with selected memes
-            // API returns memes inside dump.memes
             const existingMemes = dumpData.dump.memes || [];
             const mergedMemes = [...existingMemes];
             selectedMemes.forEach(m => {
@@ -118,9 +120,6 @@ export default function AddToDumpModal({
               }
             });
             setDumpMemes(mergedMemes);
-
-            // Pre-select existing recipients
-            // This would require loading recipient data too
           } else {
             setExistingDump(null);
             setDumpName("");
@@ -139,7 +138,7 @@ export default function AddToDumpModal({
       setDumpMemes([]);
       setSelectedGroupIds(new Set());
       setSelectedConnectionIds(new Set());
-      setShowRecipientPicker(false);
+      setActiveView("main");
       setUploading(false);
       setNewRecipientName("");
       setError("");
@@ -150,17 +149,16 @@ export default function AddToDumpModal({
       setSentRecipients([]);
       setSentDumpId(null);
       setExpandedGroupId(null);
+      setShowAddRecipient(false);
     }
   }, [isOpen]);
 
   function getSelectedRecipients(): { name: string; connectionId?: string; groupId?: string; isGroupMember?: boolean }[] {
     const recipients: { name: string; connectionId?: string; groupId?: string; isGroupMember?: boolean }[] = [];
 
-    // Add from selected groups (track the group they came from)
     for (const groupId of selectedGroupIds) {
       const group = groups.find((g) => g.id === groupId);
       if (group) {
-        // Add the group as a single recipient entry
         recipients.push({
           name: group.name,
           groupId: group.id,
@@ -169,7 +167,6 @@ export default function AddToDumpModal({
       }
     }
 
-    // Add from selected connections
     for (const connectionId of selectedConnectionIds) {
       const connection = connections.find((c) => c.id === connectionId);
       if (connection && !recipients.find(r => r.name === connection.name)) {
@@ -180,11 +177,9 @@ export default function AddToDumpModal({
     return recipients;
   }
 
-  // Get actual recipients for sending (expand groups to members)
   function getRecipientsForSend(): { name: string; connectionId?: string }[] {
     const recipients: { name: string; connectionId?: string }[] = [];
 
-    // Add from selected groups
     for (const groupId of selectedGroupIds) {
       const group = groups.find((g) => g.id === groupId);
       if (group) {
@@ -196,7 +191,6 @@ export default function AddToDumpModal({
       }
     }
 
-    // Add from selected connections
     for (const connectionId of selectedConnectionIds) {
       const connection = connections.find((c) => c.id === connectionId);
       if (connection && !recipients.find(r => r.name === connection.name)) {
@@ -212,19 +206,16 @@ export default function AddToDumpModal({
   const recipientCount = recipientsForSend.length;
   const hasMemes = dumpMemes.length > 0;
   const hasName = dumpName.trim().length > 0;
-  const canSaveDraft = hasMemes || hasName; // Can save with just a name
+  const canSaveDraft = hasMemes || hasName;
   const canSend = hasMemes && recipientCount > 0;
 
-  // Action button text
   const actionButtonText = canSend ? "Send Now" : "Save Draft";
   const isActionDisabled = saving || !canSaveDraft;
 
   async function handleAction() {
     if (canSend) {
-      // Show confirmation before sending
       setShowSendConfirm(true);
     } else {
-      // Save as draft
       await handleSave(true);
     }
   }
@@ -255,21 +246,16 @@ export default function AddToDumpModal({
 
       if (!isDraft) {
         setShowConfetti(true);
-
-        // Check if any recipients need manual link sharing
         const recipients = data.recipients || [];
         const needsLinks = recipients.some((r: RecipientResult) => !r.isConnected);
 
         setTimeout(() => {
           setShowConfetti(false);
-
           if (needsLinks) {
-            // Show link sharing modal instead of immediately redirecting
             setSentRecipients(recipients);
             setSentDumpId(data.dumpId);
             setShowLinkSharing(true);
           } else {
-            // All connected - just close and navigate
             onComplete?.();
             onClose();
             router.push(`/dumps/${data.dumpId}`);
@@ -288,11 +274,12 @@ export default function AddToDumpModal({
   }
 
   function handleClose() {
-    if (hasUnsavedChanges) {
-      setShowDiscardConfirm(true);
-    } else {
-      onClose();
+    if (activeView === "recipients") {
+      setActiveView("main");
+      return;
     }
+    // X button just closes - the user can use Done to save
+    onClose();
   }
 
   function toggleConnection(connectionId: string) {
@@ -333,12 +320,10 @@ export default function AddToDumpModal({
       const data = await res.json();
 
       if (res.ok) {
-        // Refresh connections and auto-select the new one
         const connectionsRes = await fetch("/api/connections");
         const connectionsData = await connectionsRes.json();
         setConnections(connectionsData.connections || []);
 
-        // Auto-select the new connection
         if (data.connectionId) {
           setSelectedConnectionIds(prev => new Set([...prev, data.connectionId]));
         }
@@ -355,7 +340,6 @@ export default function AddToDumpModal({
     }
   }
 
-  // Allowed file types for upload
   const allowedImageTypes = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/heic", "image/heif"];
   const allowedVideoTypes = ["video/mp4", "video/quicktime", "video/webm", "video/mov"];
   const allowedTypes = [...allowedImageTypes, ...allowedVideoTypes];
@@ -366,256 +350,505 @@ export default function AddToDumpModal({
     setUploading(true);
     setError("");
 
-    try {
-      const formData = new FormData();
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
+    // Validate all files first before uploading
+    const validFiles: File[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
 
-        // Validate file type
-        if (!allowedTypes.includes(file.type)) {
-          const fileExt = file.name.split('.').pop()?.toLowerCase() || '';
-          if (['mp3', 'wav', 'aac', 'm4a', 'ogg', 'flac'].includes(fileExt)) {
-            setError(`Audio files aren't supported. Only photos and videos.`);
-          } else {
-            setError(`"${file.name}" isn't supported. Only photos and videos.`);
-          }
-          setUploading(false);
-          return;
+      if (!allowedTypes.includes(file.type)) {
+        const fileExt = file.name.split('.').pop()?.toLowerCase() || '';
+        if (['mp3', 'wav', 'aac', 'm4a', 'ogg', 'flac'].includes(fileExt)) {
+          setError(`Audio files aren't supported. Only photos and videos.`);
+        } else {
+          setError(`"${file.name}" isn't supported. Only photos and videos.`);
         }
+        setUploading(false);
+        return;
+      }
 
-        // Check file size
-        if (file.size > 10 * 1024 * 1024) {
-          setError(`"${file.name}" is too large. Max 10MB.`);
-          setUploading(false);
-          return;
-        }
+      if (file.size > 10 * 1024 * 1024) {
+        setError(`"${file.name}" is too large. Max 10MB.`);
+        setUploading(false);
+        return;
+      }
+      validFiles.push(file);
+    }
+
+    // Upload files one at a time to avoid body size limits
+    const uploadedMemes: Meme[] = [];
+    let failedCount = 0;
+
+    for (let i = 0; i < validFiles.length; i++) {
+      const file = validFiles[i];
+
+      try {
+        const formData = new FormData();
         formData.append("files", file);
+
+        const res = await fetch("/api/memes", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.memes?.length > 0) {
+            uploadedMemes.push(...data.memes);
+          }
+        } else {
+          failedCount++;
+        }
+      } catch (err) {
+        console.error("Upload error for file:", file.name, err);
+        failedCount++;
       }
+    }
 
-      const res = await fetch("/api/memes", {
-        method: "POST",
-        body: formData,
-      });
+    // Update state with successfully uploaded memes
+    if (uploadedMemes.length > 0) {
+      setDumpMemes(prev => [...prev, ...uploadedMemes]);
+      setHasUnsavedChanges(true);
+    }
 
-      if (res.ok) {
-        const data = await res.json();
-        // Add uploaded memes to the dump
-        setDumpMemes(prev => [...prev, ...(data.memes || [])]);
-        setHasUnsavedChanges(true);
+    if (failedCount > 0) {
+      if (uploadedMemes.length > 0) {
+        setError(`${failedCount} of ${validFiles.length} uploads failed. ${uploadedMemes.length} succeeded.`);
       } else {
-        const data = await res.json().catch(() => ({}));
-        setError(data.error || "Upload failed. Please try again.");
+        setError("Upload failed. Please try again.");
       }
-    } catch (err) {
-      console.error("Upload error:", err);
-      setError("Network error. Check connection and try again.");
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
+    }
+
+    setUploading(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
     }
   }
 
   if (!isOpen) return null;
 
-  // Connected users (with user_id linked)
   const connectedUsers = connections.filter(c => c.connected_user_id);
-  // Pending connections (without user_id)
   const pendingConnections = connections.filter(c => !c.connected_user_id);
 
   return (
     <>
       <Confetti active={showConfetti} />
-      <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center animate-fadeIn">
-        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={handleClose} />
 
+      {/* Backdrop */}
+      <div className="fixed inset-0 z-[60] animate-fadeIn">
         <div
-          ref={containerRef}
-          className="relative w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl max-h-[90vh] overflow-hidden flex flex-col animate-slideUp sm:animate-scaleIn"
+          className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+          onClick={handleClose}
+        />
+
+        {/* Main Tray - Dump Overview */}
+        <div
+          className={`absolute inset-x-0 bottom-0 ${
+            activeView === "recipients"
+              ? "animate-tray-push-back pointer-events-none"
+              : "animate-tray-pull-forward"
+          }`}
+          style={{ zIndex: 61 }}
         >
-          {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
-            <button
-              onClick={handleClose}
-              className="text-blue-500 font-medium min-w-[70px]"
-              disabled={saving}
-            >
-              {isNewDump ? "Cancel" : "✕"}
-            </button>
+          <div className="w-full max-w-lg mx-auto bg-white rounded-t-3xl max-h-[75vh] overflow-hidden flex flex-col shadow-2xl">
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+              {/* Left button: Done (saves) or X (closes) */}
+              {hasUnsavedChanges || hasMemes ? (
+                <button
+                  onClick={async () => {
+                    if (canSaveDraft) {
+                      await handleSave(true);
+                    } else {
+                      onClose();
+                    }
+                  }}
+                  className="px-3 py-2 text-blue-500 font-semibold text-sm hover:text-blue-600"
+                  disabled={saving}
+                >
+                  {saving ? "..." : "Done"}
+                </button>
+              ) : (
+                <button
+                  onClick={handleClose}
+                  className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-gray-600"
+                  disabled={saving}
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
 
-            {/* Editable title */}
-            {isNewDump ? (
-              <h2 className="font-semibold">New Dump</h2>
-            ) : (
-              <input
-                type="text"
-                value={dumpName}
-                onChange={(e) => {
-                  setDumpName(e.target.value);
-                  setHasUnsavedChanges(true);
-                }}
-                placeholder="Untitled"
-                className="font-semibold text-center bg-transparent border-none outline-none w-32"
-              />
-            )}
+              <h2 className="font-semibold text-lg">
+                {isNewDump ? "New Dump" : (dumpName || "Untitled")}
+              </h2>
 
-            <button
-              onClick={handleAction}
-              disabled={isActionDisabled}
-              className="text-blue-500 font-semibold min-w-[70px] text-right disabled:text-gray-300"
-            >
-              {saving ? "..." : actionButtonText}
-            </button>
-          </div>
+              {/* Right button: Send Now (only when ready) */}
+              {canSend ? (
+                <button
+                  onClick={handleAction}
+                  disabled={saving}
+                  className="px-4 py-2 rounded-full font-semibold text-sm bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50"
+                >
+                  {saving ? "..." : "Send Now"}
+                </button>
+              ) : (
+                <div className="w-20" />
+              )}
+            </div>
 
-          {/* Content */}
-          <div className="flex-1 overflow-y-auto p-4 pb-safe space-y-4">
-            {loading ? (
-              <div className="flex items-center justify-center py-12">
-                <FunLoader />
-              </div>
-            ) : (
-              <>
-                {/* Name field for new dumps */}
-                {isNewDump && (
-                  <div className="bg-gray-50 rounded-2xl">
-                    <input
-                      type="text"
-                      value={dumpName}
-                      onChange={(e) => {
-                        setDumpName(e.target.value);
-                        setHasUnsavedChanges(true);
-                      }}
-                      placeholder="Name your dump..."
-                      className="w-full px-4 py-3 bg-transparent focus:outline-none"
-                    />
-                  </div>
-                )}
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {loading ? (
+                <div className="flex items-center justify-center py-12">
+                  <FunLoader />
+                </div>
+              ) : (
+                <>
+                  {/* Name field */}
+                  <input
+                    type="text"
+                    value={dumpName}
+                    onChange={(e) => {
+                      setDumpName(e.target.value);
+                      setHasUnsavedChanges(true);
+                    }}
+                    placeholder="Name your dump..."
+                    className="w-full px-4 py-3 bg-gray-50 rounded-2xl focus:outline-none focus:ring-2 focus:ring-amber-500/50 text-lg"
+                  />
 
-                {/* Hidden file input for camera roll */}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*,video/*"
-                  multiple
-                  onChange={(e) => handleFileUpload(e.target.files)}
-                  className="hidden"
-                  disabled={uploading}
-                />
+                  {/* Hidden file input */}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*,video/*"
+                    multiple
+                    onChange={(e) => handleFileUpload(e.target.files)}
+                    className="hidden"
+                    disabled={uploading}
+                  />
 
-                {/* Meme preview - compact horizontal layout */}
-                {hasMemes ? (
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-4 p-3 bg-gray-50 rounded-2xl">
-                      {/* Photo pile */}
-                      <div className="relative w-20 h-20 flex-shrink-0">
-                        {dumpMemes.slice(0, 3).map((meme, i) => (
-                          <div
-                            key={meme.id}
-                            className="absolute w-16 h-16 rounded-xl overflow-hidden bg-gray-200 shadow-md"
-                            style={{
-                              transform: `rotate(${(i - 1) * 8}deg)`,
-                              top: `${i * 2}px`,
-                              left: `${i * 2}px`,
-                              zIndex: 3 - i,
-                            }}
-                          >
-                            {meme.file_type === "video" ? (
-                              <video src={meme.file_url} className="w-full h-full object-cover" muted />
+                  {/* Memes section */}
+                  <div className="bg-gray-50 rounded-2xl p-4">
+                    {hasMemes ? (
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploading}
+                        className="w-full flex flex-col items-center py-4 hover:bg-gray-100 rounded-xl transition-colors"
+                      >
+                        {/* Centered photo pile with + button integrated */}
+                        <div className="relative" style={{ width: "120px", height: "100px" }}>
+                          {dumpMemes.slice(0, 3).map((meme, i) => (
+                            <div
+                              key={meme.id}
+                              className="absolute rounded-xl overflow-hidden bg-white shadow-lg border border-gray-100"
+                              style={{
+                                width: "72px",
+                                height: "72px",
+                                transform: `rotate(${(i - 1) * 12}deg)`,
+                                top: `${8 + i * 4}px`,
+                                left: `${12 + i * 8}px`,
+                                zIndex: 3 - i,
+                              }}
+                            >
+                              {meme.file_type === "video" ? (
+                                <video src={meme.file_url} className="w-full h-full object-cover" muted />
+                              ) : (
+                                <img src={meme.file_url} alt="" className="w-full h-full object-cover" />
+                              )}
+                            </div>
+                          ))}
+                          {/* + badge on stack */}
+                          <div className="absolute -right-1 -bottom-1 w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center z-10">
+                            {uploading ? (
+                              <span className="text-white text-sm animate-spin">⏳</span>
                             ) : (
-                              <img src={meme.file_url} alt="" className="w-full h-full object-cover" />
+                              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />
+                              </svg>
                             )}
                           </div>
-                        ))}
-                      </div>
-                      {/* Count */}
-                      <div className="flex-1 text-left">
-                        <p className="font-semibold text-gray-900">{dumpMemes.length} meme{dumpMemes.length !== 1 ? "s" : ""}</p>
-                      </div>
+                        </div>
+                        <p className="text-sm text-gray-500 mt-2">
+                          {uploading ? "Uploading..." : `${dumpMemes.length} meme${dumpMemes.length !== 1 ? "s" : ""}`}
+                        </p>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploading}
+                        className="w-full py-12 flex flex-col items-center justify-center gap-3"
+                      >
+                        {uploading ? (
+                          <>
+                            <span className="text-4xl animate-spin">⏳</span>
+                            <span className="text-gray-500">Uploading...</span>
+                          </>
+                        ) : (
+                          <>
+                            <div className="w-16 h-16 bg-orange-500 rounded-2xl flex items-center justify-center">
+                              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                              </svg>
+                            </div>
+                            <div className="text-center">
+                              <p className="font-semibold text-gray-900">Add memes</p>
+                              <p className="text-sm text-gray-500">From your camera roll</p>
+                            </div>
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Recipients section - tappable row */}
+                  <button
+                    onClick={() => setActiveView("recipients")}
+                    className="w-full flex items-center gap-4 p-4 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-colors text-left"
+                  >
+                    <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
+                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                      </svg>
                     </div>
-                    {/* Add more button */}
-                    <button
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={uploading}
-                      className="w-full py-3 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-colors flex items-center justify-center gap-2 text-blue-500 font-medium"
-                    >
-                      {uploading ? (
+                    <div className="flex-1 min-w-0">
+                      {recipientsForDisplay.length > 0 ? (
                         <>
-                          <span className="animate-spin">⏳</span>
-                          <span>Uploading...</span>
+                          <p className="font-semibold text-gray-900 truncate">
+                            {recipientsForDisplay.map((r, i) => (
+                              <span key={r.groupId || r.connectionId || r.name}>
+                                {r.groupId ? `👥 ${r.name}` : formatName(r.name)}
+                                {i < recipientsForDisplay.length - 1 ? ", " : ""}
+                              </span>
+                            ))}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            {recipientCount} {recipientCount === 1 ? "person" : "people"}
+                          </p>
                         </>
                       ) : (
                         <>
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                          </svg>
-                          <span>Add more from camera roll</span>
+                          <p className="font-semibold text-gray-900">Send to...</p>
+                          <p className="text-sm text-gray-500">Choose recipients</p>
                         </>
                       )}
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploading}
-                    className="w-full py-8 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 hover:border-blue-400 transition-colors flex items-center justify-center gap-3"
-                  >
-                    {uploading ? (
-                      <>
-                        <span className="text-2xl animate-spin">⏳</span>
-                        <span className="text-gray-500 font-medium">Uploading...</span>
-                      </>
-                    ) : (
-                      <>
-                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                          <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                          </svg>
-                        </div>
-                        <span className="text-gray-500 font-medium">Add from camera roll</span>
-                      </>
-                    )}
-                  </button>
-                )}
-
-                {/* Recipients section - compact row */}
-                <button
-                  onClick={() => setShowRecipientPicker(true)}
-                  className="w-full flex items-center gap-3 p-3 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-colors"
-                >
-                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                    <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </div>
+                    <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
-                  </div>
-                  <div className="flex-1 text-left min-w-0">
-                    {recipientsForDisplay.length > 0 ? (
-                      <p className="font-medium text-gray-900 truncate">
-                        {recipientsForDisplay.map((r, i) => (
-                          <span key={r.groupId || r.connectionId || r.name}>
-                            {r.groupId ? `👥 ${r.name}` : formatName(r.name)}
-                            {i < recipientsForDisplay.length - 1 ? ", " : ""}
-                          </span>
-                        ))}
-                      </p>
-                    ) : (
-                      <p className="text-gray-500">No recipients selected</p>
-                    )}
-                    <p className="text-sm text-blue-500">
-                      {recipientsForDisplay.length > 0 ? "Tap to edit" : "Tap to add"}
-                    </p>
-                  </div>
-                  <svg className="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
+                  </button>
 
-                {error && <p className="text-red-500 text-sm text-center">{error}</p>}
-              </>
-            )}
+                  {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+                </>
+              )}
+            </div>
           </div>
         </div>
+
+        {/* Recipients Tray - slides up on top with spring animation */}
+        {activeView === "recipients" && (
+        <div
+          className="absolute inset-x-0 bottom-0 animate-tray-up"
+          style={{ zIndex: 62 }}
+        >
+          <div className="w-full max-w-lg mx-auto bg-white rounded-t-3xl max-h-[85vh] overflow-hidden flex flex-col shadow-2xl">
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+              <button
+                onClick={() => setActiveView("main")}
+                className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+
+              <h2 className="font-semibold text-lg">Recipients</h2>
+
+              <button
+                onClick={() => setActiveView("main")}
+                className="px-4 py-2 text-blue-500 font-semibold"
+              >
+                Done
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto">
+              {/* Groups - shown first */}
+              {groups.length > 0 && (
+                <div className="p-4 border-b border-gray-100">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Groups</p>
+                  <div className="space-y-1">
+                    {groups.map((group) => (
+                      <div key={group.id}>
+                        <button
+                          onClick={() => toggleGroup(group.id)}
+                          className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 transition-colors"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                              <span className="text-lg">👥</span>
+                            </div>
+                            <div className="text-left">
+                              <span className="font-medium block">{group.name}</span>
+                              <span className="text-xs text-gray-400">{group.members.length} people</span>
+                            </div>
+                          </div>
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center transition-all ${
+                            selectedGroupIds.has(group.id)
+                              ? "bg-blue-500 scale-100"
+                              : "bg-gray-200 scale-90"
+                          }`}>
+                            {selectedGroupIds.has(group.id) && (
+                              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                            )}
+                          </div>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Connected users */}
+              {connectedUsers.length > 0 && (
+                <div className="p-4 border-b border-gray-100">
+                  <div className="flex items-center gap-2 mb-3">
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Connected</p>
+                    <span className="text-[10px] text-green-600 bg-green-50 px-2 py-0.5 rounded-full">gets push</span>
+                  </div>
+                  <div className="space-y-1">
+                    {connectedUsers.map((connection) => (
+                      <button
+                        key={connection.id}
+                        onClick={() => toggleConnection(connection.id)}
+                        className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center">
+                            <span className="text-white font-semibold text-sm">
+                              {connection.name.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                          <span className="font-medium">{formatName(connection.name)}</span>
+                        </div>
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center transition-all ${
+                          selectedConnectionIds.has(connection.id)
+                            ? "bg-blue-500 scale-100"
+                            : "bg-gray-200 scale-90"
+                        }`}>
+                          {selectedConnectionIds.has(connection.id) && (
+                            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                          )}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Pending connections */}
+              {pendingConnections.length > 0 && (
+                <div className="p-4 border-b border-gray-100">
+                  <div className="flex items-center gap-2 mb-3">
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Not Connected</p>
+                    <span className="text-[10px] text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">needs link</span>
+                  </div>
+                  <div className="space-y-1">
+                    {pendingConnections.map((connection) => (
+                      <button
+                        key={connection.id}
+                        onClick={() => toggleConnection(connection.id)}
+                        className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
+                            <span className="text-amber-600 font-semibold text-sm">
+                              {connection.name.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                          <span className="font-medium">{formatName(connection.name)}</span>
+                        </div>
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center transition-all ${
+                          selectedConnectionIds.has(connection.id)
+                            ? "bg-blue-500 scale-100"
+                            : "bg-gray-200 scale-90"
+                        }`}>
+                          {selectedConnectionIds.has(connection.id) && (
+                            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                          )}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Add new recipient - collapsible */}
+              <div className="p-4">
+                {!showAddRecipient ? (
+                  <button
+                    onClick={() => setShowAddRecipient(true)}
+                    className="text-blue-500 font-semibold text-sm hover:text-blue-600 transition-colors"
+                  >
+                    + Add someone new
+                  </button>
+                ) : (
+                  <div className="animate-expandIn">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Add Someone New</p>
+                      <button
+                        onClick={() => {
+                          setShowAddRecipient(false);
+                          setNewRecipientName("");
+                        }}
+                        className="text-gray-400 hover:text-gray-600"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newRecipientName}
+                        onChange={(e) => setNewRecipientName(e.target.value)}
+                        placeholder="Enter name..."
+                        autoFocus
+                        className="flex-1 px-4 py-3 bg-gray-50 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && newRecipientName.trim()) {
+                            handleAddNewRecipient();
+                          }
+                          if (e.key === "Escape") {
+                            setShowAddRecipient(false);
+                            setNewRecipientName("");
+                          }
+                        }}
+                      />
+                      <button
+                        onClick={handleAddNewRecipient}
+                        disabled={!newRecipientName.trim() || addingRecipient}
+                        className="px-5 py-3 bg-blue-500 text-white rounded-xl font-semibold disabled:opacity-50"
+                      >
+                        {addingRecipient ? "..." : "Add"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+        )}
       </div>
 
       {/* Send confirmation dialog */}
@@ -640,7 +873,7 @@ export default function AddToDumpModal({
               <button
                 onClick={() => handleSave(false)}
                 disabled={saving}
-                className="flex-1 py-3 bg-blue-500 text-white font-semibold rounded-xl"
+                className="flex-1 py-3 bg-orange-500 text-white font-semibold rounded-xl hover:bg-orange-600"
               >
                 {saving ? "Sending..." : "Send"}
               </button>
@@ -654,9 +887,7 @@ export default function AddToDumpModal({
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-6 animate-fadeIn">
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowDiscardConfirm(false)} />
           <div className="relative bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl">
-            <h3 className="text-lg font-bold text-center mb-2">
-              Save changes?
-            </h3>
+            <h3 className="text-lg font-bold text-center mb-2">Save changes?</h3>
             <p className="text-gray-500 text-center text-sm mb-6">
               You have unsaved changes to this dump
             </p>
@@ -684,19 +915,20 @@ export default function AddToDumpModal({
         </div>
       )}
 
-      {/* Link Sharing Modal - shows after sending to non-connected recipients */}
+      {/* Link Sharing Modal */}
       <LinkSharingModal
         isOpen={showLinkSharing}
         onClose={() => {
           setShowLinkSharing(false);
           onComplete?.();
           onClose();
-          if (sentDumpId) {
-            router.push(`/dumps/${sentDumpId}`);
-          }
+          // Go back to home instead of dump detail
+          router.push("/");
         }}
         recipients={sentRecipients}
         dumpId={sentDumpId || ""}
+        dumpName={dumpName || undefined}
+        previewUrls={dumpMemes.slice(0, 3).map(m => m.file_url)}
       />
     </>
   );

@@ -333,6 +333,10 @@ export const db = {
     await sql`DELETE FROM dump_memes WHERE dump_id = ${dumpId} AND meme_id = ${memeId}`;
   },
 
+  async clearDumpMemes(dumpId: string): Promise<void> {
+    await sql`DELETE FROM dump_memes WHERE dump_id = ${dumpId}`;
+  },
+
   async getDumpMemeCount(dumpId: string): Promise<number> {
     const { rows } = await sql<{ count: string }>`
       SELECT COUNT(*) as count FROM dump_memes WHERE dump_id = ${dumpId}
@@ -926,6 +930,18 @@ export const db = {
       SET connected_user_id = ${userId}, connected_at = NOW()
       WHERE id = ${connectionId}
     `;
+  },
+
+  async linkConnectionByName(connectorId: string, name: string, userId: string): Promise<boolean> {
+    // Find connection by connector and name, then link to user
+    const { rowCount } = await sql`
+      UPDATE user_connections
+      SET connected_user_id = ${userId}, connected_at = NOW()
+      WHERE connector_id = ${connectorId}
+        AND LOWER(name) = LOWER(${name})
+        AND connected_user_id IS NULL
+    `;
+    return (rowCount ?? 0) > 0;
   },
 
   async getPendingConnectionsForUser(name: string): Promise<UserConnection[]> {

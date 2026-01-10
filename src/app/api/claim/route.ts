@@ -45,6 +45,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Failed to claim" }, { status: 500 });
     }
 
+    // Also link the user_connection if one exists for this sender+name
+    // This enables "claim once, push forever" via the connection system
+    try {
+      await db.linkConnectionByName(dump.sender_id, claimedRecipient.name, user.id);
+    } catch (e) {
+      // Non-fatal - connection linking is supplementary
+      console.log("Could not link connection (may not exist):", e);
+    }
+
     // Get meme count for success message
     const memes = await db.getMemesByDump(dump.id);
 

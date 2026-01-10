@@ -104,16 +104,22 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // For existing dumps, clear and replace memes. For new dumps, just add.
+    if (existingDumpId) {
+      // Clear existing memes first
+      await db.clearDumpMemes(dumpId);
+
+      // Update the dump note if changed
+      await db.updateDump(dumpId, { note: note || null, is_draft: isDraft });
+    }
+
     // Add memes to dump (if any)
     if (memeIdList.length > 0) {
-      const existingMemes = await db.getMemesByDump(dumpId);
-      const startOrder = existingMemes.length;
-
       const dumpMemes = memeIdList.map((memeId: string, index: number) => ({
         id: uuid(),
         dump_id: dumpId,
         meme_id: memeId,
-        sort_order: startOrder + index,
+        sort_order: index,
       }));
       await db.addMemesToDump(dumpMemes);
     }

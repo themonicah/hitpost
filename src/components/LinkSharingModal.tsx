@@ -15,6 +15,8 @@ interface LinkSharingModalProps {
   onClose: () => void;
   recipients: RecipientLink[];
   dumpId: string;
+  dumpName?: string;
+  previewUrls?: string[];
 }
 
 // Format name as "First L." or just "Name" if single word
@@ -30,6 +32,9 @@ export default function LinkSharingModal({
   isOpen,
   onClose,
   recipients,
+  dumpId,
+  dumpName,
+  previewUrls = [],
 }: LinkSharingModalProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -49,29 +54,14 @@ export default function LinkSharingModal({
     }
   }
 
-  async function shareAll() {
-    const shareText = needsLinks
-      .map((r) => `${r.name}: ${r.link}`)
-      .join("\n\n");
-
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: "Meme Dump Links",
-          text: shareText,
-        });
-      } catch {
-        // User cancelled or share failed
-      }
-    } else {
-      // Fallback: copy all to clipboard
-      try {
-        await navigator.clipboard.writeText(shareText);
-        setCopiedId("all");
-        setTimeout(() => setCopiedId(null), 2000);
-      } catch {
-        // Clipboard failed
-      }
+  async function copyPreviewLink() {
+    const previewUrl = `${window.location.origin}/dumps/${dumpId}`;
+    try {
+      await navigator.clipboard.writeText(previewUrl);
+      setCopiedId("preview");
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch (err) {
+      console.error("Failed to copy preview:", err);
     }
   }
 
@@ -80,12 +70,35 @@ export default function LinkSharingModal({
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
 
       <div className="relative w-full max-w-md bg-white rounded-3xl overflow-hidden shadow-2xl animate-scaleIn">
-        {/* Header with celebration */}
-        <div className="bg-gradient-to-br from-amber-400 to-orange-500 px-6 py-8 text-center">
-          <div className="text-5xl mb-3">🎉</div>
+        {/* Header with splayed photos */}
+        <div className="bg-gradient-to-br from-amber-400 to-orange-500 px-6 pt-6 pb-8 text-center">
+          {/* Splayed photo stack */}
+          {previewUrls.length > 0 && (
+            <div className="relative w-24 h-20 mx-auto mb-4">
+              {previewUrls.slice(0, 3).map((url, i) => (
+                <div
+                  key={i}
+                  className="absolute w-14 h-14 rounded-lg overflow-hidden bg-white shadow-lg border-2 border-white"
+                  style={{
+                    transform: `rotate(${(i - 1) * 12}deg)`,
+                    left: `${20 + i * 12}px`,
+                    top: `${i * 4}px`,
+                    zIndex: 3 - i,
+                  }}
+                >
+                  <img src={url} alt="" className="w-full h-full object-cover" />
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="text-4xl mb-2">🎉</div>
           <h2 className="text-2xl font-bold text-white">Dump Sent!</h2>
+          {dumpName && (
+            <p className="text-white/90 font-medium mt-1">{dumpName}</p>
+          )}
           {connectedRecipients.length > 0 && (
-            <p className="text-white/80 text-sm mt-2">
+            <p className="text-white/70 text-sm mt-2">
               {connectedRecipients.length} {connectedRecipients.length === 1 ? "person" : "people"} will get a push notification
             </p>
           )}
@@ -127,38 +140,6 @@ export default function LinkSharingModal({
                   </button>
                 </div>
               ))}
-
-              {/* Copy all button */}
-              {needsLinks.length > 1 && (
-                <button
-                  onClick={shareAll}
-                  className="w-full py-3 bg-gray-100 text-gray-700 rounded-xl flex flex-col items-center justify-center gap-0.5 hover:bg-gray-200 transition-colors"
-                >
-                  <span className="font-semibold">
-                    {copiedId === "all" ? "Copied!" : "Copy All to Clipboard"}
-                  </span>
-                  <span className="text-xs text-gray-500">
-                    Paste into a group chat
-                  </span>
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* Tip about QR codes */}
-          {needsLinks.length > 0 && (
-            <div className="mt-4 p-4 bg-amber-50 rounded-xl border border-amber-200">
-              <div className="flex gap-3">
-                <span className="text-2xl">💡</span>
-                <div>
-                  <p className="text-amber-800 font-medium text-sm">
-                    Want easier sharing next time?
-                  </p>
-                  <p className="text-amber-600 text-sm mt-1">
-                    Have friends scan your QR code so they connect to you. Future dumps will go straight to their app!
-                  </p>
-                </div>
-              </div>
             </div>
           )}
 
@@ -171,13 +152,38 @@ export default function LinkSharingModal({
               </p>
             </div>
           )}
+
+          {/* Preview link */}
+          <div className="mt-4 pt-4 border-t border-gray-100">
+            <button
+              onClick={copyPreviewLink}
+              className={`w-full flex items-center justify-between p-3 rounded-xl transition-all ${
+                copiedId === "preview"
+                  ? "bg-green-50 border border-green-200"
+                  : "bg-gray-50 hover:bg-gray-100"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+                <span className="text-gray-700 font-medium text-sm">Preview link</span>
+              </div>
+              <span className={`text-sm font-semibold ${
+                copiedId === "preview" ? "text-green-600" : "text-blue-500"
+              }`}>
+                {copiedId === "preview" ? "Copied!" : "Copy"}
+              </span>
+            </button>
+          </div>
         </div>
 
         {/* Done button */}
         <div className="px-6 py-4 border-t border-gray-100">
           <button
             onClick={onClose}
-            className="w-full py-4 bg-gradient-to-r from-amber-400 to-orange-500 text-white font-bold text-lg rounded-2xl shadow-lg shadow-orange-500/30 active:scale-95 transition-transform"
+            className="w-full py-4 bg-orange-500 text-white font-bold text-lg rounded-2xl hover:bg-orange-600 active:scale-95 transition-all"
           >
             Done
           </button>

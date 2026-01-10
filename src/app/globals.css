@@ -139,6 +139,23 @@ html {
   animation: slideUp 0.3s ease-out;
 }
 
+@keyframes expandIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    max-height: 100px;
+  }
+}
+
+.animate-expandIn {
+  animation: expandIn 0.25s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
+}
+
 .animate-scaleIn {
   animation: scaleIn 0.2s ease-out;
 }
@@ -249,6 +266,87 @@ html {
 /* Transition utilities */
 .transition-transform-fast {
   transition: transform 0.15s ease-out;
+}
+
+/* Dynamic Tray System - Spring-like transitions
+ * Inspired by benji.org/family-values tray patterns:
+ * - Height varies per tray to show progression
+ * - Context preserved via overlay not replacement
+ * - Spring easing for natural "bounce into place" feel
+ */
+@keyframes traySlideUp {
+  0% {
+    transform: translateY(100%);
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes traySlideDown {
+  0% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+}
+
+/* Push-back creates depth when new tray overlays */
+@keyframes trayPushBack {
+  0% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+    filter: brightness(1);
+  }
+  100% {
+    transform: scale(0.92) translateY(-8px);
+    opacity: 0.5;
+    filter: brightness(0.85);
+  }
+}
+
+@keyframes trayPullForward {
+  0% {
+    transform: scale(0.92) translateY(-8px);
+    opacity: 0.5;
+    filter: brightness(0.85);
+  }
+  100% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+    filter: brightness(1);
+  }
+}
+
+/* Spring cubic-bezier: (0.34, 1.56, 0.64, 1) overshoots for bounce feel */
+.animate-tray-up {
+  animation: traySlideUp 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.animate-tray-down {
+  animation: traySlideDown 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.animate-tray-push-back {
+  animation: trayPushBack 0.4s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
+}
+
+.animate-tray-pull-forward {
+  animation: trayPullForward 0.35s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
+}
+
+/* Spring easing for smooth tray transitions */
+.transition-spring {
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.transition-spring-fast {
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 /* Confetti particle */
