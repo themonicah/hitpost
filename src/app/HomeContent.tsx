@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { useRouter } from "next/navigation";
 import FunLoader from "@/components/FunLoader";
 import EmptyState from "@/components/EmptyState";
 import AddToDumpModal from "@/components/AddToDumpModal";
@@ -20,6 +19,8 @@ interface DumpSummary {
 
 interface HomeContentProps {
   userId: string;
+  showNewDumpTrigger?: boolean;
+  onNewDumpOpened?: () => void;
 }
 
 // Generate consistent random values based on dump id
@@ -244,8 +245,7 @@ function SentFlyout({
 }
 
 
-export default function HomeContent({ userId }: HomeContentProps) {
-  const router = useRouter();
+export default function HomeContent({ userId, showNewDumpTrigger, onNewDumpOpened }: HomeContentProps) {
   const [dumps, setDumps] = useState<DumpSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -254,6 +254,15 @@ export default function HomeContent({ userId }: HomeContentProps) {
   const [showSentDrawer, setShowSentDrawer] = useState(false);
   const [selectedSentDumpId, setSelectedSentDumpId] = useState<string | null>(null);
   const [showSentFlyout, setShowSentFlyout] = useState(false);
+
+  // Handle new dump trigger from header
+  useEffect(() => {
+    if (showNewDumpTrigger) {
+      setSelectedDumpId(null);
+      setShowDumpDrawer(true);
+      onNewDumpOpened?.();
+    }
+  }, [showNewDumpTrigger, onNewDumpOpened]);
 
   const fetchDumps = useCallback(async () => {
     setError(null);
@@ -336,28 +345,16 @@ export default function HomeContent({ userId }: HomeContentProps) {
     );
   }
 
-  // Empty state - no dumps at all (FAB is still visible)
+  // Empty state - no dumps at all
   if (dumps.length === 0) {
     return (
       <>
-        <div className="px-4 py-8">
+        <div className="px-4 py-12">
           <EmptyState
             type="memes"
             title="No dumps yet"
-            description="Tap the + button to create your first meme dump!"
+            description="Tap + Dump to create your first meme dump!"
           />
-        </div>
-        {/* FAB - opens new dump tray */}
-        <div className="fixed bottom-6 right-6 z-30">
-          <button
-            onClick={() => {
-              setSelectedDumpId(null);
-              setShowDumpDrawer(true);
-            }}
-            className="w-16 h-16 bg-orange-500 rounded-full flex items-center justify-center shadow-lg hover:bg-orange-600 hover:scale-105 active:scale-95 transition-all"
-          >
-            <span className="text-2xl">💩</span>
-          </button>
         </div>
 
         {/* Dump Drawer for empty state */}
@@ -380,14 +377,6 @@ export default function HomeContent({ userId }: HomeContentProps) {
 
   return (
     <div className="pb-32 min-h-screen relative">
-      {/* Desk surface background */}
-      <div
-        className="fixed inset-0 -z-10"
-        style={{
-          background: "linear-gradient(180deg, #faf8f5 0%, #f0ebe3 100%)",
-        }}
-      />
-
       {/* Scattered draft polaroids */}
       <div className="relative px-4 pt-4">
         <div className="flex flex-wrap justify-center gap-4 py-4">
@@ -418,19 +407,6 @@ export default function HomeContent({ userId }: HomeContentProps) {
         sentDumps={sentDumps}
         onExpand={() => setShowSentFlyout(true)}
       />
-
-      {/* FAB - always visible, opens new dump tray */}
-      <div className="fixed bottom-6 right-6 z-30">
-        <button
-          onClick={() => {
-            setSelectedDumpId(null);
-            setShowDumpDrawer(true);
-          }}
-          className="w-16 h-16 bg-orange-500 rounded-full flex items-center justify-center shadow-lg hover:bg-orange-600 hover:scale-105 active:scale-95 transition-all"
-        >
-          <span className="text-2xl">💩</span>
-        </button>
-      </div>
 
       {/* Sent Flyout */}
       <SentFlyout
