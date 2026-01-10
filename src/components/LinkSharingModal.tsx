@@ -66,19 +66,25 @@ export default function LinkSharingModal({
   }
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 animate-fadeIn">
+    <div
+      className="fixed inset-0 z-[80] flex items-center justify-center p-4 animate-fadeIn"
+      onClick={onClose}
+    >
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
 
-      <div className="relative w-full max-w-md bg-white rounded-3xl overflow-hidden shadow-2xl animate-scaleIn">
-        {/* Header with splayed photos */}
-        <div className="bg-gradient-to-br from-amber-400 to-orange-500 px-6 pt-6 pb-8 text-center">
+      <div
+        className="relative w-full max-w-md bg-white rounded-3xl overflow-hidden shadow-2xl animate-scaleIn"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header - clean and simple */}
+        <div className="px-6 pt-6 pb-4 text-center">
           {/* Splayed photo stack */}
           {previewUrls.length > 0 && (
             <div className="relative w-24 h-20 mx-auto mb-4">
               {previewUrls.slice(0, 3).map((url, i) => (
                 <div
                   key={i}
-                  className="absolute w-14 h-14 rounded-lg overflow-hidden bg-white shadow-lg border-2 border-white"
+                  className="absolute w-14 h-14 rounded-lg overflow-hidden bg-white shadow-lg border-2 border-gray-100"
                   style={{
                     transform: `rotate(${(i - 1) * 12}deg)`,
                     left: `${20 + i * 12}px`,
@@ -92,13 +98,11 @@ export default function LinkSharingModal({
             </div>
           )}
 
-          <div className="text-4xl mb-2">🎉</div>
-          <h2 className="text-2xl font-bold text-white">Dump Sent!</h2>
-          {dumpName && (
-            <p className="text-white/90 font-medium mt-1">{dumpName}</p>
-          )}
+          <h2 className="text-xl font-bold text-gray-900">
+            {dumpName || "Dump"} sent
+          </h2>
           {connectedRecipients.length > 0 && (
-            <p className="text-white/70 text-sm mt-2">
+            <p className="text-gray-500 text-sm mt-1">
               {connectedRecipients.length} {connectedRecipients.length === 1 ? "person" : "people"} will get a push notification
             </p>
           )}
@@ -146,35 +150,23 @@ export default function LinkSharingModal({
           {/* All connected - simple success */}
           {needsLinks.length === 0 && (
             <div className="text-center py-4">
-              <div className="text-4xl mb-3">✨</div>
               <p className="text-gray-600">
                 All recipients are connected and will receive a push notification!
               </p>
             </div>
           )}
 
-          {/* Preview link */}
-          <div className="mt-4 pt-4 border-t border-gray-100">
+          {/* Preview link - just a simple blue link */}
+          <div className="mt-4 pt-4 border-t border-gray-100 text-center">
             <button
               onClick={copyPreviewLink}
-              className={`w-full flex items-center justify-between p-3 rounded-xl transition-all ${
+              className={`text-sm font-medium transition-colors ${
                 copiedId === "preview"
-                  ? "bg-green-50 border border-green-200"
-                  : "bg-gray-50 hover:bg-gray-100"
+                  ? "text-green-600"
+                  : "text-blue-500 hover:text-blue-600"
               }`}
             >
-              <div className="flex items-center gap-3">
-                <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                </svg>
-                <span className="text-gray-700 font-medium text-sm">Preview link</span>
-              </div>
-              <span className={`text-sm font-semibold ${
-                copiedId === "preview" ? "text-green-600" : "text-blue-500"
-              }`}>
-                {copiedId === "preview" ? "Copied!" : "Copy"}
-              </span>
+              {copiedId === "preview" ? "Preview link copied!" : "Copy preview link"}
             </button>
           </div>
         </div>
