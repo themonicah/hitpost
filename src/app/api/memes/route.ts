@@ -28,6 +28,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No files provided" }, { status: 400 });
     }
 
+    // Validate file types
+    const allowedImageTypes = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/heic", "image/heif"];
+    const allowedVideoTypes = ["video/mp4", "video/quicktime", "video/webm", "video/mov"];
+    const allowedTypes = [...allowedImageTypes, ...allowedVideoTypes];
+
+    for (const file of files) {
+      if (!allowedTypes.includes(file.type)) {
+        return NextResponse.json(
+          { error: `Unsupported file type: ${file.type || file.name}. Only images and videos are allowed.` },
+          { status: 400 }
+        );
+      }
+    }
+
     const uploadedMemes: { id: string; user_id: string; file_url: string; file_type: string; created_at: string }[] = [];
 
     for (const file of files) {
@@ -39,7 +53,7 @@ export async function POST(req: NextRequest) {
         access: "public",
       });
 
-      const fileType = file.type.startsWith("video/") ? "video" : "image";
+      const fileType = allowedVideoTypes.includes(file.type) ? "video" : "image";
       const memeId = uuid();
 
       await db.createMeme({

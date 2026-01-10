@@ -43,6 +43,11 @@ export default function MemeUploader({ onUpload, compact = false }: MemeUploader
     }
   }, [uploading]);
 
+  // Allowed file types
+  const allowedImageTypes = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/heic", "image/heif"];
+  const allowedVideoTypes = ["video/mp4", "video/quicktime", "video/webm", "video/mov"];
+  const allowedTypes = [...allowedImageTypes, ...allowedVideoTypes];
+
   async function uploadFiles(files: FileList | null) {
     if (!files || files.length === 0) return;
 
@@ -53,6 +58,19 @@ export default function MemeUploader({ onUpload, compact = false }: MemeUploader
       const formData = new FormData();
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
+
+        // Check file type
+        if (!allowedTypes.includes(file.type)) {
+          const fileExt = file.name.split('.').pop()?.toLowerCase() || '';
+          if (['mp3', 'wav', 'aac', 'm4a', 'ogg', 'flac'].includes(fileExt)) {
+            setError(`Audio files aren't supported. Only photos and videos allowed.`);
+          } else {
+            setError(`"${file.name}" isn't supported. Only photos and videos allowed.`);
+          }
+          setUploading(false);
+          return;
+        }
+
         // Check file size (max 10MB per file for Vercel)
         if (file.size > 10 * 1024 * 1024) {
           setError(`File "${file.name}" is too large. Max 10MB per file.`);

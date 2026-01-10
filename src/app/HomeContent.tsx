@@ -32,6 +32,20 @@ function DumpCard({
   const isDraft = dump.is_draft;
   const allViewed = !isDraft && dump.viewed_count === dump.recipient_count && dump.recipient_count > 0;
 
+  // Show up to 8 memes in the preview
+  const previewCount = Math.min(dump.preview_urls.length, 8);
+  const rotations = [-15, 10, -8, 12, -5, 18, -12, 8];
+  const positions = [
+    { top: "5%", left: "2%" },
+    { top: "8%", left: "18%" },
+    { top: "2%", left: "38%" },
+    { top: "10%", right: "25%" },
+    { top: "5%", right: "5%" },
+    { bottom: "25%", left: "8%" },
+    { bottom: "20%", left: "30%" },
+    { bottom: "22%", right: "12%" },
+  ];
+
   return (
     <button
       onClick={onClick}
@@ -46,44 +60,35 @@ function DumpCard({
         group-hover:scale-[1.02] group-active:scale-[0.98]
       `}>
         {/* Meme collage - scattered polaroid style */}
-        <div className="relative h-40 p-4 overflow-hidden">
-          {dump.preview_urls.slice(0, 4).map((url, i) => {
-            const rotations = [-12, 8, -5, 15];
-            const positions = [
-              { top: "10%", left: "5%" },
-              { top: "5%", right: "10%" },
-              { bottom: "15%", left: "20%" },
-              { bottom: "10%", right: "5%" },
-            ];
-            return (
-              <div
-                key={i}
-                className="absolute w-20 h-20 bg-white p-1 rounded-lg shadow-lg"
-                style={{
-                  transform: `rotate(${rotations[i]}deg)`,
-                  ...positions[i],
-                  zIndex: i,
-                }}
-              >
-                <img
-                  src={url}
-                  alt=""
-                  className="w-full h-full object-cover rounded"
-                />
-              </div>
-            );
-          })}
+        <div className="relative h-40 p-2 overflow-hidden">
+          {dump.preview_urls.slice(0, previewCount).map((url, i) => (
+            <div
+              key={i}
+              className="absolute w-14 h-14 bg-white p-0.5 rounded-lg shadow-md"
+              style={{
+                transform: `rotate(${rotations[i]}deg)`,
+                ...positions[i],
+                zIndex: i,
+              }}
+            >
+              <img
+                src={url}
+                alt=""
+                className="w-full h-full object-cover rounded"
+              />
+            </div>
+          ))}
 
-          {/* Count badge */}
-          {dump.meme_count > 4 && (
-            <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs font-bold px-2 py-1 rounded-full">
-              +{dump.meme_count - 4}
+          {/* Count badge - only show if more than 8 */}
+          {dump.meme_count > 8 && (
+            <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs font-bold px-2 py-1 rounded-full z-10">
+              +{dump.meme_count - 8}
             </div>
           )}
 
           {/* Draft indicator */}
           {isDraft && (
-            <div className="absolute top-3 right-3 bg-amber-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+            <div className="absolute top-3 right-3 bg-amber-500 text-white text-xs font-bold px-2 py-1 rounded-full z-10">
               DRAFT
             </div>
           )}
@@ -137,23 +142,6 @@ function DumpCard({
   );
 }
 
-// Empty draft card - "New Dump" starter
-function NewDumpCard({ onClick }: { onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className="w-full h-48 rounded-3xl border-2 border-dashed border-slate-300 bg-slate-50 hover:bg-slate-100 hover:border-slate-400 transition-all flex flex-col items-center justify-center gap-3 group"
-    >
-      <div className="w-16 h-16 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-        <span className="text-3xl">💩</span>
-      </div>
-      <div className="text-center">
-        <p className="font-bold text-slate-700">Start a dump</p>
-        <p className="text-sm text-slate-500">Pick memes & send to friends</p>
-      </div>
-    </button>
-  );
-}
 
 export default function HomeContent({ userId }: HomeContentProps) {
   const router = useRouter();
@@ -216,34 +204,36 @@ export default function HomeContent({ userId }: HomeContentProps) {
   const draftDumps = dumps.filter(d => d.is_draft);
   const sentDumps = dumps.filter(d => !d.is_draft);
 
-  // Empty state - no dumps at all
+  // Empty state - no dumps at all (FAB is still visible)
   if (dumps.length === 0) {
     return (
-      <div className="px-4 py-8">
-        <EmptyState
-          type="memes"
-          title="No dumps yet"
-          description="Create your first meme dump and send it to friends!"
-          action={{
-            label: "Create Dump",
-            onClick: () => router.push("/new-dump"),
-          }}
-        />
-      </div>
+      <>
+        <div className="px-4 py-8">
+          <EmptyState
+            type="memes"
+            title="No dumps yet"
+            description="Tap the + button to create your first meme dump!"
+          />
+        </div>
+        {/* FAB - always visible */}
+        <div className="fixed bottom-6 right-6 z-30">
+          <button
+            onClick={() => router.push("/new-dump")}
+            className="w-16 h-16 bg-gradient-to-br from-amber-500 to-orange-600 rounded-full flex items-center justify-center shadow-xl shadow-orange-500/40 hover:scale-110 active:scale-95 transition-transform"
+          >
+            <span className="text-2xl">💩</span>
+          </button>
+        </div>
+      </>
     );
   }
 
   return (
-    <div className="pb-8">
+    <div className="pb-24">
       {/* Drafts section */}
-      {(draftDumps.length > 0 || sentDumps.length === 0) && (
+      {draftDumps.length > 0 && (
         <section className="px-4 py-4">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-bold text-slate-900">
-              {draftDumps.length > 0 ? "Drafts" : "Get started"}
-            </h2>
-          </div>
-
+          <h2 className="text-lg font-bold text-slate-900 mb-3">Drafts</h2>
           <div className="grid grid-cols-1 gap-4">
             {draftDumps.map((dump) => (
               <DumpCard
@@ -255,7 +245,6 @@ export default function HomeContent({ userId }: HomeContentProps) {
                 }}
               />
             ))}
-            <NewDumpCard onClick={() => router.push("/new-dump")} />
           </div>
         </section>
       )}
@@ -279,19 +268,15 @@ export default function HomeContent({ userId }: HomeContentProps) {
         </section>
       )}
 
-      {/* FAB for quick access when scrolled */}
-      {sentDumps.length > 2 && (
-        <div className="fixed bottom-6 right-6 z-30">
-          <button
-            onClick={() => router.push("/new-dump")}
-            className="w-14 h-14 bg-gradient-to-br from-amber-500 to-orange-600 rounded-full flex items-center justify-center shadow-lg shadow-orange-500/30 hover:scale-110 active:scale-95 transition-transform"
-          >
-            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
-            </svg>
-          </button>
-        </div>
-      )}
+      {/* FAB - always visible, the ONE place to create a dump */}
+      <div className="fixed bottom-6 right-6 z-30">
+        <button
+          onClick={() => router.push("/new-dump")}
+          className="w-16 h-16 bg-gradient-to-br from-amber-500 to-orange-600 rounded-full flex items-center justify-center shadow-xl shadow-orange-500/40 hover:scale-110 active:scale-95 transition-transform"
+        >
+          <span className="text-2xl">💩</span>
+        </button>
+      </div>
 
       {/* Dump Drawer */}
       <AddToDumpModal

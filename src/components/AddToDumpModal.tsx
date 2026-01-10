@@ -5,7 +5,6 @@ import { Meme, UserConnection } from "@/lib/db";
 import { useRouter } from "next/navigation";
 import Confetti from "./Confetti";
 import FunLoader from "./FunLoader";
-import MemePicker from "./MemePicker";
 import LinkSharingModal from "./LinkSharingModal";
 
 interface RecipientResult {
@@ -76,8 +75,9 @@ export default function AddToDumpModal({
   const [selectedGroupIds, setSelectedGroupIds] = useState<Set<string>>(new Set());
   const [selectedConnectionIds, setSelectedConnectionIds] = useState<Set<string>>(new Set());
   const [showRecipientPicker, setShowRecipientPicker] = useState(false);
-  const [showMemePicker, setShowMemePicker] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [newRecipientName, setNewRecipientName] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [showLinkSharing, setShowLinkSharing] = useState(false);
   const [sentRecipients, setSentRecipients] = useState<RecipientResult[]>([]);
   const [sentDumpId, setSentDumpId] = useState<string | null>(null);
@@ -140,7 +140,7 @@ export default function AddToDumpModal({
       setSelectedGroupIds(new Set());
       setSelectedConnectionIds(new Set());
       setShowRecipientPicker(false);
-      setShowMemePicker(false);
+      setUploading(false);
       setNewRecipientName("");
       setError("");
       setHasUnsavedChanges(false);
@@ -355,6 +355,68 @@ export default function AddToDumpModal({
     }
   }
 
+  // Allowed file types for upload
+  const allowedImageTypes = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/heic", "image/heif"];
+  const allowedVideoTypes = ["video/mp4", "video/quicktime", "video/webm", "video/mov"];
+  const allowedTypes = [...allowedImageTypes, ...allowedVideoTypes];
+
+  async function handleFileUpload(files: FileList | null) {
+    if (!files || files.length === 0) return;
+
+    setUploading(true);
+    setError("");
+
+    try {
+      const formData = new FormData();
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+
+        // Validate file type
+        if (!allowedTypes.includes(file.type)) {
+          const fileExt = file.name.split('.').pop()?.toLowerCase() || '';
+          if (['mp3', 'wav', 'aac', 'm4a', 'ogg', 'flac'].includes(fileExt)) {
+            setError(`Audio files aren't supported. Only photos and videos.`);
+          } else {
+            setError(`"${file.name}" isn't supported. Only photos and videos.`);
+          }
+          setUploading(false);
+          return;
+        }
+
+        // Check file size
+        if (file.size > 10 * 1024 * 1024) {
+          setError(`"${file.name}" is too large. Max 10MB.`);
+          setUploading(false);
+          return;
+        }
+        formData.append("files", file);
+      }
+
+      const res = await fetch("/api/memes", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        // Add uploaded memes to the dump
+        setDumpMemes(prev => [...prev, ...(data.memes || [])]);
+        setHasUnsavedChanges(true);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || "Upload failed. Please try again.");
+      }
+    } catch (err) {
+      console.error("Upload error:", err);
+      setError("Network error. Check connection and try again.");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  }
+
   if (!isOpen) return null;
 
   // Connected users (with user_id linked)
@@ -431,296 +493,123 @@ export default function AddToDumpModal({
                   </div>
                 )}
 
-                {/* Meme preview - stacked/askew style */}
+                {/* Hidden file input for camera roll */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*,video/*"
+                  multiple
+                  onChange={(e) => handleFileUpload(e.target.files)}
+                  className="hidden"
+                  disabled={uploading}
+                />
+
+                {/* Meme preview - compact horizontal layout */}
                 {hasMemes ? (
-                  <div className="flex flex-col items-center">
-                    <div className="relative w-32 h-32">
-                      {dumpMemes.slice(0, 3).map((meme, i) => (
-                        <div
-                          key={meme.id}
-                          className="absolute w-28 h-28 rounded-2xl overflow-hidden bg-gray-100 shadow-lg"
-                          style={{
-                            transform: `rotate(${(i - 1) * 6}deg)`,
-                            top: `${i * 4}px`,
-                            left: `${i * 4}px`,
-                            zIndex: 3 - i,
-                          }}
-                        >
-                          {meme.file_type === "video" ? (
-                            <video src={meme.file_url} className="w-full h-full object-cover" muted />
-                          ) : (
-                            <img src={meme.file_url} alt="" className="w-full h-full object-cover" />
-                          )}
-                        </div>
-                      ))}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-4 p-3 bg-gray-50 rounded-2xl">
+                      {/* Photo pile */}
+                      <div className="relative w-20 h-20 flex-shrink-0">
+                        {dumpMemes.slice(0, 3).map((meme, i) => (
+                          <div
+                            key={meme.id}
+                            className="absolute w-16 h-16 rounded-xl overflow-hidden bg-gray-200 shadow-md"
+                            style={{
+                              transform: `rotate(${(i - 1) * 8}deg)`,
+                              top: `${i * 2}px`,
+                              left: `${i * 2}px`,
+                              zIndex: 3 - i,
+                            }}
+                          >
+                            {meme.file_type === "video" ? (
+                              <video src={meme.file_url} className="w-full h-full object-cover" muted />
+                            ) : (
+                              <img src={meme.file_url} alt="" className="w-full h-full object-cover" />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                      {/* Count */}
+                      <div className="flex-1 text-left">
+                        <p className="font-semibold text-gray-900">{dumpMemes.length} meme{dumpMemes.length !== 1 ? "s" : ""}</p>
+                      </div>
                     </div>
-                    {dumpMemes.length > 3 && (
-                      <p className="text-sm text-gray-500 mt-4">+{dumpMemes.length - 3} more</p>
-                    )}
+                    {/* Add more button */}
                     <button
-                      onClick={() => setShowMemePicker(true)}
-                      className="text-blue-500 text-sm font-medium mt-2"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploading}
+                      className="w-full py-3 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-colors flex items-center justify-center gap-2 text-blue-500 font-medium"
                     >
-                      + Add more memes
+                      {uploading ? (
+                        <>
+                          <span className="animate-spin">⏳</span>
+                          <span>Uploading...</span>
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                          </svg>
+                          <span>Add more from camera roll</span>
+                        </>
+                      )}
                     </button>
                   </div>
                 ) : (
                   <button
-                    onClick={() => setShowMemePicker(true)}
-                    className="w-full py-12 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 hover:border-blue-400 transition-colors flex flex-col items-center justify-center gap-2"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    className="w-full py-8 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 hover:border-blue-400 transition-colors flex items-center justify-center gap-3"
                   >
-                    <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                      <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                      </svg>
-                    </div>
-                    <span className="text-gray-500 font-medium">Add memes to dump</span>
+                    {uploading ? (
+                      <>
+                        <span className="text-2xl animate-spin">⏳</span>
+                        <span className="text-gray-500 font-medium">Uploading...</span>
+                      </>
+                    ) : (
+                      <>
+                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                          <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                          </svg>
+                        </div>
+                        <span className="text-gray-500 font-medium">Add from camera roll</span>
+                      </>
+                    )}
                   </button>
                 )}
 
-                {/* Recipients section */}
-                <div className="space-y-2">
-                  <h3 className="text-sm font-medium text-gray-500">Send to</h3>
-
-                  {/* Selected recipients as chips */}
-                  <div className="flex flex-wrap gap-2">
-                    {recipientsForDisplay.map((recipient) => (
-                      <span
-                        key={recipient.groupId || recipient.connectionId || recipient.name}
-                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium ${
-                          recipient.groupId
-                            ? "bg-amber-100 text-amber-700"
-                            : "bg-blue-100 text-blue-700"
-                        }`}
-                      >
-                        {recipient.groupId ? "👥 " : ""}{formatName(recipient.name)}
-                        <button
-                          onClick={() => {
-                            if (recipient.groupId) {
-                              toggleGroup(recipient.groupId);
-                            } else if (recipient.connectionId) {
-                              toggleConnection(recipient.connectionId);
-                            }
-                          }}
-                          className={recipient.groupId ? "text-amber-400 hover:text-amber-600" : "text-blue-400 hover:text-blue-600"}
-                        >
-                          ×
-                        </button>
-                      </span>
-                    ))}
-
-                    {/* Add recipient chip */}
-                    <button
-                      onClick={() => setShowRecipientPicker(!showRecipientPicker)}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-100 text-gray-600 rounded-full text-sm font-medium hover:bg-gray-200 transition-colors"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                      </svg>
-                      Add
-                    </button>
+                {/* Recipients section - compact row */}
+                <button
+                  onClick={() => setShowRecipientPicker(true)}
+                  className="w-full flex items-center gap-3 p-3 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-colors"
+                >
+                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
                   </div>
-
-                  {/* Recipient picker (expandable) */}
-                  {showRecipientPicker && (
-                    <div className="bg-gray-50 rounded-2xl overflow-hidden mt-2">
-                      {/* Connected users */}
-                      {connectedUsers.length > 0 && (
-                        <div className="p-3 border-b border-gray-200">
-                          <div className="flex items-center gap-2 mb-2">
-                            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                              Connected
-                            </p>
-                            <span className="text-[10px] text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full">
-                              gets push
-                            </span>
-                          </div>
-                          {connectedUsers.map((connection) => (
-                            <button
-                              key={connection.id}
-                              onClick={() => toggleConnection(connection.id)}
-                              className="w-full flex items-center justify-between py-2"
-                            >
-                              <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center">
-                                  <span className="text-white font-semibold text-xs">
-                                    {connection.name.charAt(0).toUpperCase()}
-                                  </span>
-                                </div>
-                                <span className="font-medium text-sm">{formatName(connection.name)}</span>
-                                <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 24 24">
-                                  <path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                                </svg>
-                              </div>
-                              <div className={`w-5 h-5 rounded-full flex items-center justify-center ${
-                                selectedConnectionIds.has(connection.id) ? "bg-blue-500" : "bg-gray-200"
-                              }`}>
-                                {selectedConnectionIds.has(connection.id) && (
-                                  <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                  </svg>
-                                )}
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Pending connections */}
-                      {pendingConnections.length > 0 && (
-                        <div className="p-3 border-b border-gray-200">
-                          <div className="flex items-center gap-2 mb-2">
-                            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                              Not Connected
-                            </p>
-                            <span className="text-[10px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full">
-                              needs link
-                            </span>
-                          </div>
-                          {pendingConnections.map((connection) => (
-                            <button
-                              key={connection.id}
-                              onClick={() => toggleConnection(connection.id)}
-                              className="w-full flex items-center justify-between py-2"
-                            >
-                              <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center">
-                                  <span className="text-amber-600 font-semibold text-xs">
-                                    {connection.name.charAt(0).toUpperCase()}
-                                  </span>
-                                </div>
-                                <span className="font-medium text-sm">{formatName(connection.name)}</span>
-                                <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                                </svg>
-                              </div>
-                              <div className={`w-5 h-5 rounded-full flex items-center justify-center ${
-                                selectedConnectionIds.has(connection.id) ? "bg-blue-500" : "bg-gray-200"
-                              }`}>
-                                {selectedConnectionIds.has(connection.id) && (
-                                  <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                  </svg>
-                                )}
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Groups */}
-                      {groups.length > 0 && (
-                        <div className="p-3 border-b border-gray-200">
-                          <div className="flex items-center justify-between mb-2">
-                            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                              Groups
-                            </p>
-                            <a
-                              href="/groups"
-                              onClick={(e) => e.stopPropagation()}
-                              className="text-[10px] text-blue-500 hover:text-blue-600"
-                            >
-                              Manage
-                            </a>
-                          </div>
-                          {groups.map((group) => (
-                            <div key={group.id} className="mb-2">
-                              <div className="flex items-center justify-between py-2">
-                                <button
-                                  onClick={() => setExpandedGroupId(expandedGroupId === group.id ? null : group.id)}
-                                  className="flex items-center gap-2 flex-1"
-                                >
-                                  <div className="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center">
-                                    <span className="text-sm">👥</span>
-                                  </div>
-                                  <div className="text-left">
-                                    <span className="font-medium text-sm block">{group.name}</span>
-                                    <span className="text-xs text-gray-400">{group.members.length} people</span>
-                                  </div>
-                                  <svg
-                                    className={`w-4 h-4 text-gray-400 transition-transform ${expandedGroupId === group.id ? 'rotate-180' : ''}`}
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                  </svg>
-                                </button>
-                                <button
-                                  onClick={() => toggleGroup(group.id)}
-                                  className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                                    selectedGroupIds.has(group.id) ? "bg-blue-500" : "bg-gray-200"
-                                  }`}
-                                >
-                                  {selectedGroupIds.has(group.id) && (
-                                    <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                    </svg>
-                                  )}
-                                </button>
-                              </div>
-
-                              {/* Expanded member list */}
-                              {expandedGroupId === group.id && (
-                                <div className="ml-10 mt-1 space-y-1 pb-2">
-                                  {group.members.map((member) => (
-                                    <div key={member.id} className="flex items-center gap-2 py-1 text-sm text-gray-600">
-                                      <div className="w-5 h-5 bg-gray-200 rounded-full flex items-center justify-center">
-                                        <span className="text-[10px] font-medium">{member.name.charAt(0).toUpperCase()}</span>
-                                      </div>
-                                      <span>{member.name}</span>
-                                    </div>
-                                  ))}
-                                  {group.members.length === 0 && (
-                                    <p className="text-xs text-gray-400 italic">No members yet</p>
-                                  )}
-                                  <a
-                                    href={`/groups`}
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="text-xs text-blue-500 hover:text-blue-600 flex items-center gap-1 pt-1"
-                                  >
-                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                    </svg>
-                                    Edit group
-                                  </a>
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Add new recipient */}
-                      <div className="p-3">
-                        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                          Add someone new
-                        </p>
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            value={newRecipientName}
-                            onChange={(e) => setNewRecipientName(e.target.value)}
-                            placeholder="Name..."
-                            className="flex-1 px-3 py-2 bg-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" && newRecipientName.trim()) {
-                                handleAddNewRecipient();
-                              }
-                            }}
-                          />
-                          <button
-                            onClick={handleAddNewRecipient}
-                            disabled={!newRecipientName.trim()}
-                            className="px-4 py-2 bg-blue-500 text-white rounded-xl text-sm font-medium disabled:opacity-50"
-                          >
-                            Add
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                  <div className="flex-1 text-left min-w-0">
+                    {recipientsForDisplay.length > 0 ? (
+                      <p className="font-medium text-gray-900 truncate">
+                        {recipientsForDisplay.map((r, i) => (
+                          <span key={r.groupId || r.connectionId || r.name}>
+                            {r.groupId ? `👥 ${r.name}` : formatName(r.name)}
+                            {i < recipientsForDisplay.length - 1 ? ", " : ""}
+                          </span>
+                        ))}
+                      </p>
+                    ) : (
+                      <p className="text-gray-500">No recipients selected</p>
+                    )}
+                    <p className="text-sm text-blue-500">
+                      {recipientsForDisplay.length > 0 ? "Tap to edit" : "Tap to add"}
+                    </p>
+                  </div>
+                  <svg className="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
 
                 {error && <p className="text-red-500 text-sm text-center">{error}</p>}
               </>
@@ -794,18 +683,6 @@ export default function AddToDumpModal({
           </div>
         </div>
       )}
-
-      {/* Meme Picker */}
-      <MemePicker
-        isOpen={showMemePicker}
-        onClose={() => setShowMemePicker(false)}
-        selectedMemeIds={new Set(dumpMemes.map((m) => m.id))}
-        onSelectionChange={() => {}}
-        onDone={(selectedMemes) => {
-          setDumpMemes(selectedMemes);
-          setHasUnsavedChanges(true);
-        }}
-      />
 
       {/* Link Sharing Modal - shows after sending to non-connected recipients */}
       <LinkSharingModal
