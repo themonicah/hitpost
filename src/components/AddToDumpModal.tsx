@@ -868,126 +868,140 @@ export default function AddToDumpModal({
               </button>
             </div>
 
-            {/* Content - Grid or Expanded View */}
+            {/* Content - Grid view only */}
             <div className="flex-1 overflow-y-auto p-4">
-              {expandedMemeId ? (
-                // Expanded single meme view
-                <div className="flex flex-col h-full">
-                  {(() => {
-                    const meme = dumpMemes.find(m => m.id === expandedMemeId);
-                    if (!meme) return null;
-                    return (
-                      <>
-                        <div className="flex-1 flex items-center justify-center bg-black rounded-2xl overflow-hidden min-h-[300px]">
-                          {meme.file_type === "video" ? (
-                            <video
-                              src={meme.file_url}
-                              className="max-w-full max-h-[400px] object-contain"
-                              controls
-                              autoPlay
-                              muted
-                            />
-                          ) : (
-                            <img
-                              src={meme.file_url}
-                              alt=""
-                              className="max-w-full max-h-[400px] object-contain"
-                            />
-                          )}
-                        </div>
-                        <div className="flex gap-3 mt-4">
-                          <button
-                            onClick={() => setExpandedMemeId(null)}
-                            className="flex-1 py-3 bg-gray-100 text-gray-700 font-semibold rounded-xl"
-                          >
-                            Back to Grid
-                          </button>
-                          <button
-                            onClick={() => {
-                              setDumpMemes(prev => prev.filter(m => m.id !== expandedMemeId));
-                              setExpandedMemeId(null);
-                              setHasUnsavedChanges(true);
-                            }}
-                            className="flex-1 py-3 bg-red-100 text-red-600 font-semibold rounded-xl"
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      </>
-                    );
-                  })()}
+              {uploading && (
+                <div className="flex items-center justify-center py-4 mb-4 bg-orange-50 rounded-xl">
+                  <span className="text-orange-600">Uploading...</span>
                 </div>
-              ) : (
-                // Grid view
-                <>
-                  {uploading && (
-                    <div className="flex items-center justify-center py-4 mb-4 bg-orange-50 rounded-xl">
-                      <span className="text-orange-600">Uploading...</span>
-                    </div>
-                  )}
-                  <div className="grid grid-cols-3 gap-2">
-                    {dumpMemes.map((meme) => (
-                      <div key={meme.id} className="relative aspect-square group">
-                        <button
-                          onClick={() => setExpandedMemeId(meme.id)}
-                          className="w-full h-full rounded-xl overflow-hidden bg-gray-100"
-                        >
-                          {meme.file_type === "video" ? (
-                            <video
-                              src={meme.file_url}
-                              className="w-full h-full object-cover"
-                              muted
-                            />
-                          ) : (
-                            <img
-                              src={meme.file_url}
-                              alt=""
-                              className="w-full h-full object-cover"
-                            />
-                          )}
-                        </button>
-                        {/* Delete button - always visible on mobile */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDumpMemes(prev => prev.filter(m => m.id !== meme.id));
-                            setHasUnsavedChanges(true);
-                          }}
-                          className="absolute top-1 right-1 w-7 h-7 bg-black/70 hover:bg-black/90 rounded-full flex items-center justify-center"
-                        >
-                          <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                        {/* Video indicator */}
-                        {meme.file_type === "video" && (
-                          <div className="absolute bottom-1 left-1 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center">
-                            <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M8 5v14l11-7z" />
-                            </svg>
-                          </div>
-                        )}
+              )}
+              <div className="grid grid-cols-3 gap-2">
+                {dumpMemes.map((meme) => (
+                  <div key={meme.id} className="relative aspect-square group">
+                    <button
+                      onClick={() => setExpandedMemeId(meme.id)}
+                      className="w-full h-full rounded-xl overflow-hidden bg-gray-100"
+                    >
+                      {meme.file_type === "video" ? (
+                        <video
+                          src={meme.file_url}
+                          className="w-full h-full object-cover"
+                          muted
+                        />
+                      ) : (
+                        <img
+                          src={meme.file_url}
+                          alt=""
+                          className="w-full h-full object-cover"
+                        />
+                      )}
+                    </button>
+                    {/* Delete button - always visible on mobile */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDumpMemes(prev => prev.filter(m => m.id !== meme.id));
+                        setHasUnsavedChanges(true);
+                      }}
+                      className="absolute top-1 right-1 w-7 h-7 bg-black/70 hover:bg-black/90 rounded-full flex items-center justify-center"
+                    >
+                      <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                    {/* Video indicator */}
+                    {meme.file_type === "video" && (
+                      <div className="absolute bottom-1 left-1 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center">
+                        <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M8 5v14l11-7z" />
+                        </svg>
                       </div>
-                    ))}
+                    )}
                   </div>
-                  {dumpMemes.length === 0 && (
-                    <div className="text-center py-12">
-                      <p className="text-gray-500">No memes yet</p>
-                      <button
-                        onClick={() => fileInputRef.current?.click()}
-                        className="mt-4 px-6 py-3 bg-orange-500 text-white font-semibold rounded-xl"
-                      >
-                        Add Memes
-                      </button>
-                    </div>
-                  )}
-                </>
+                ))}
+              </div>
+              {dumpMemes.length === 0 && (
+                <div className="text-center py-12">
+                  <p className="text-gray-500">No memes yet</p>
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="mt-4 px-6 py-3 bg-orange-500 text-white font-semibold rounded-xl"
+                  >
+                    Add Memes
+                  </button>
+                </div>
               )}
             </div>
           </div>
         </div>
         )}
       </div>
+
+      {/* Full-screen Meme Lightbox */}
+      {expandedMemeId && (() => {
+        const meme = dumpMemes.find(m => m.id === expandedMemeId);
+        if (!meme) return null;
+        return (
+          <div className="fixed inset-0 z-[80] animate-fadeIn">
+            {/* Backdrop */}
+            <div
+              className="absolute inset-0 bg-black/95"
+              onClick={() => setExpandedMemeId(null)}
+            />
+
+            {/* Content */}
+            <div className="absolute inset-0 flex flex-col">
+              {/* Header */}
+              <div className="flex items-center justify-between px-4 pt-14 pb-4">
+                <button
+                  onClick={() => setExpandedMemeId(null)}
+                  className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-white"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+                <div className="w-10" />
+              </div>
+
+              {/* Meme */}
+              <div className="flex-1 flex items-center justify-center px-4 min-h-0">
+                <div className="w-full max-w-lg">
+                  {meme.file_type === "video" ? (
+                    <video
+                      src={meme.file_url}
+                      className="w-full max-h-[65vh] object-contain rounded-2xl"
+                      controls
+                      autoPlay
+                      playsInline
+                    />
+                  ) : (
+                    <img
+                      src={meme.file_url}
+                      alt=""
+                      className="w-full max-h-[65vh] object-contain rounded-2xl"
+                    />
+                  )}
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="px-6 pb-10 pb-safe">
+                <button
+                  onClick={() => {
+                    setDumpMemes(prev => prev.filter(m => m.id !== expandedMemeId));
+                    setExpandedMemeId(null);
+                    setHasUnsavedChanges(true);
+                  }}
+                  className="w-full py-4 bg-red-500/20 text-red-400 font-semibold rounded-2xl border border-red-500/30"
+                >
+                  Remove from Dump
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Send confirmation dialog */}
       {showSendConfirm && (
