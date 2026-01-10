@@ -409,6 +409,73 @@ This prevents the Next.js 4MB body size limit from causing failures when uploadi
 
 ---
 
+---
+
+## Receiver/Viewer Page (`src/app/view/[token]/ViewDumpContent.tsx`)
+
+**Single Base Page + Lightbox Tray Pattern**
+
+No more intro/outro pages with irreversible navigation. Everything on one scrollable page.
+
+**Base Page Layout:**
+```
+┌─────────────────────────────────────────┐
+│         [Splayed photo stack]           │  ← Tappable to view
+│                                         │
+│              [Sender avatar]            │
+│      "senderName sent you a dump"       │
+│           "Dump Name"                   │
+│            5 memes                      │
+├─────────────────────────────────────────┤
+│           TAP TO VIEW                   │
+│  [1] [2] [3] [4] [5]  ← Film strip     │
+├─────────────────────────────────────────┤
+│  Send senderName a note                 │
+│  [________________________]             │
+│  [Send Note]                            │
+├─────────────────────────────────────────┤
+│  ┌─────────────────────────────────┐   │
+│  │ Get HitPost                     │   │  ← App upsell
+│  │ Connect code: DUMP99            │   │
+│  │ [Get the App]                   │   │
+│  └─────────────────────────────────┘   │
+├─────────────────────────────────────────┤
+│            via HitPost                  │
+└─────────────────────────────────────────┘
+```
+
+**Lightbox Tray (opens over base):**
+```
+┌─────────────────────────────────────────┐
+│  [X]            1/5                     │
+├─────────────────────────────────────────┤
+│                                         │
+│           [Full Meme View]              │
+│                                         │
+├─────────────────────────────────────────┤
+│    [😂] [❤️] [🔥] [💀]  ← Reactions    │
+├─────────────────────────────────────────┤
+│  [1] [●2] [3] [4] [5]  ← Film strip    │
+└─────────────────────────────────────────┘
+```
+
+**Key Features:**
+- Base page shows all content - no hidden states
+- Film strip on base page shows all memes with reaction badges
+- Tap any meme (stack or film strip) to open lightbox
+- Lightbox has reactions + film strip navigation
+- X closes lightbox, returns to base page
+- Swipe left/right to navigate in lightbox
+- Keyboard: arrows navigate, Escape closes
+
+**Benefits over old flow:**
+- No "you can't go back" dead ends
+- User sees note input and app upsell immediately
+- Can view any meme anytime (non-linear)
+- Reactions visible on thumbnails
+
+---
+
 ## What NOT to Change
 
 These decisions are intentional:
